@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Dashboard</title>
+  <script src="dashboard.js" defer></script>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/tom-select/dist/css/tom-select.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/tom-select/dist/js/tom-select.complete.min.js"></script>
+</head>
+
+<body class="flex h-screen bg-gray-100">
+  <!-- Sidebar -->
+  <aside class="w-64 bg-blue-900 text-white flex flex-col">
+    <div class="p-4 text-2xl font-bold border-b border-blue-700">WellClean Laundry</div>
+    <nav class="flex-1 p-4 space-y-2">
+      <button id="menu-dashboard" class="w-full text-left p-2 rounded hover:bg-blue-700">Dashboard</button>
+      <button id="menu-pelanggan" class="w-full text-left p-2 rounded hover:bg-blue-700">Pelanggan</button>
+      <button id="menu-layanan" class="w-full text-left p-2 rounded hover:bg-blue-700">Layanan</button>
+      <button id="menu-transaksi" class="w-full text-left p-2 rounded hover:bg-blue-700">Transaksi</button>
+    </nav>
+    <button id="logout" class="p-4 bg-red-600 hover:bg-red-700">Logout</button>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="flex-1 p-6 overflow-y-auto">
+    <h1 class="text-2xl font-bold mb-4">Dashboard</h1>
+    <div id="content" class="bg-white p-4 rounded shadow">
+      <!-- Konten dinamis muncul di sini -->
+    </div>
+
+    <div id="modal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center">
+      <div class="bg-white p-6 rounded shadow-lg w-96">
+        <h2 id="modal-title" class="text-xl font-bold mb-4">Tambah/Edit</h2>
+        <form id="modal-form" class="space-y-2">
+          <!-- isi form dinamis -->
+        </form>
+        <div class="flex justify-end space-x-2 mt-4">
+          <button id="modal-cancel" class="bg-gray-500 text-white px-4 py-2 rounded">Batal</button>
+          <button id="modal-save" class="bg-blue-600 text-white px-4 py-2 rounded">Simpan</button>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</body>
+
+</html>
