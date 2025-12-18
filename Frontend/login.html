@@ -33,7 +33,7 @@
   </div>
 
   <script>
-    const API = "http://localhost:8080";
+    const API = "http://10.10.100.32:8080";
     const form = document.getElementById("loginForm");
     const msg = document.getElementById("msg");
     const dashboard = document.getElementById("dashboard");
@@ -56,6 +56,7 @@
 
         if (res.ok && data.access_token) {
           localStorage.setItem("token", data.access_token);
+          localStorage.setItem("role", data.role);
           msg.textContent = "Login sukses!";
           window.location.href = "dashboard.html";
         } else {
