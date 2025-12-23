@@ -1,4 +1,4 @@
-const API = "http://192.168.123.114:8080";
+const API = "http://192.168.43.134:8080";
 const token = localStorage.getItem("token");
 
 if (!token) {
@@ -797,6 +797,16 @@ function loadLaporan() {
         </div>
 
         <h3 class="font-bold text-lg mb-2">Riwayat Transaksi</h3>
+        <div class="flex items-center gap-2 mb-4">
+          <select id="filter-periode" class="border p-2 rounded">
+            <option value="mingguan">Mingguan</option>
+            <option value="bulanan">Bulanan</option>
+            <option value="tahunan">Tahunan</option>
+          </select>
+          <button id="btn-export" class="bg-yellow-500 text-white px-4 py-2 rounded shadow hover:bg-yellow-600">
+            Export Excel
+          </button>
+        </div>
         <div class="bg-white shadow rounded overflow-auto" style="max-height: 400px;">
            <table class="min-w-full divide-y divide-gray-200">
              <thead class="bg-gray-50 sticky top-0">
