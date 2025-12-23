@@ -9,9 +9,9 @@ import (
 )
 
 const (
-	BaseURL    = "https://ndvwwttqjcbkdrnkbsok.supabase.co"
-	APIKey     = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5kdnd3dHRxamNia2Rybmtic29rIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU5OTIzMzYsImV4cCI6MjA4MTU2ODMzNn0.LWSuFIeQn7WhS3ncYFDd3BxOLXvgtmKiTMgci9xNuLM"
-	AdminEmail = "admin@gmail.com"
+	BaseURL    = "https://.supabase.co"
+	APIKey     = ""
+	AdminEmail = "admin@example.com"
 )
 
 type LoginRequest struct {
@@ -89,7 +89,6 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Simple Role Check based on Email
 	role := "kasir"
 	if userObj, ok := supRes["user"].(map[string]any); ok {
 		if email, ok := userObj["email"].(string); ok && email == AdminEmail {
@@ -144,6 +143,7 @@ func dashboardHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	//nanti diubah jadi per 10 transaksi terakhir supaya tidak lemot ketika banyak data
 	transaksiURL := BaseURL + "/rest/v1/transaksi?select=*&order=created_at.desc"
 	reqTrans, _ := http.NewRequest("GET", transaksiURL, nil)
 	reqTrans.Header.Set("Authorization", auth)
@@ -181,7 +181,7 @@ func pelangganHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// forward query string juga
+	// forward query string juga, pencarian
 	fullURL := BaseURL + "/rest/v1/pelanggan"
 	if r.URL.RawQuery != "" {
 		fullURL += "?" + r.URL.RawQuery
@@ -206,6 +206,7 @@ func pelangganHandler(w http.ResponseWriter, r *http.Request) {
 
 	bodyBytes, _ := io.ReadAll(resSup.Body)
 	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(resSup.StatusCode)
 	w.Write(bodyBytes)
 }
 
@@ -381,6 +382,7 @@ func laporanHandler(w http.ResponseWriter, r *http.Request) {
 		"data":            rawList, // Send raw data to frontend for grouping
 	})
 }
+
 
 func main() {
 	http.HandleFunc("/login", corsMiddleware(loginHandler))

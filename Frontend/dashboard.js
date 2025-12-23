@@ -1,4 +1,4 @@
-const API = "http://10.10.100.32:8080";
+const API = "http://192.168.123.114:8080";
 const token = localStorage.getItem("token");
 
 if (!token) {
@@ -39,7 +39,6 @@ document.addEventListener("DOMContentLoaded", () => {
     loadDashboard();
   });
 
-  // Role Logic
   const role = localStorage.getItem("role");
   if (role === "admin") {
     document.getElementById("menu-laporan").classList.remove("hidden");
@@ -139,6 +138,7 @@ function printStruk(transaksi, namaPelanggan, namaLayanan) {
         <tr><td>No. Order</td><td style="text-align: right;">${transaksi.kode}</td></tr>
         <tr><td>Tanggal</td><td style="text-align: right;">${tanggal}</td></tr>
         <tr><td>Pelanggan</td><td style="text-align: right;">${namaPelanggan}</td></tr>
+        <tr><td>Metode Pembayaran</td><td style="text-align: right;">${transaksi.metode_pembayaran}</td></tr>
       </table>
       
       <hr style="border-top: 1px dashed black;">
@@ -638,6 +638,7 @@ function loadTransaksi() {
             <tr>
               <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Kode</th>
               <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Pelanggan</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Metode Pembayaran</th>
               <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total</th>
               <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
               <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Aksi</th>
@@ -648,6 +649,7 @@ function loadTransaksi() {
               <tr>
                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">${t.kode || '-'}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm">${pelangganMap[t.pelanggan_id] || '-'}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm">${t.metode_pembayaran || '-'}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm">${rupiah(t.total)}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm">
                   <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${t.status === 'selesai' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
@@ -682,6 +684,11 @@ function loadTransaksi() {
         </select>
         <label class="block text-sm mb-1">Berat / Jumlah</label>
         <input type="number" id="berat" class="border p-2 w-full mb-2 rounded" placeholder="Contoh: 3" required>
+        <label class="block text-sm mb-1">Metode Pembayaran</label>
+        <select id="metode_pembayaran" class="border p-2 w-full mb-2 rounded">
+          <option value="Cash">Cash</option>
+          <option value="QRIS">QRIS</option>
+        </select>
         <label class="block text-sm mb-1">Kode Transaksi</label>
         <input type="text" id="kode" class="border p-2 w-full mb-2 rounded" value="TRX-${Math.floor(Math.random() * 10000)}" readonly>
       `, async () => {
@@ -698,7 +705,7 @@ function loadTransaksi() {
           berat: berat,
           total: total,
           status: "proses",
-          metode_pembayaran: "Cash"
+          metode_pembayaran: document.getElementById("metode_pembayaran").value
         };
 
         fetch(`${API}/transaksi`, {
