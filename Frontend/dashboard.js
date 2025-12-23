@@ -774,11 +774,16 @@ function loadLaporan() {
         return;
       }
 
-      // Calculate Stats
-      const today = new Date().toISOString().split('T')[0];
       const items = data.data || [];
 
-      const daily = items.filter(i => i.created_at.startsWith(today));
+      // Calculate Stats
+      const today = new Date().toLocaleDateString("id-ID");
+
+      const daily = items.filter(i => {
+        const tanggalTransaksi = new Date(i.created_at).toLocaleDateString("id-ID");
+        return tanggalTransaksi === today;
+      });
+
       const dailyTotal = daily.reduce((acc, curr) => acc + (parseFloat(curr.total) || 0), 0);
 
       // Simple Table
