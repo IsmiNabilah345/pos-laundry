@@ -784,7 +784,17 @@ function loadLaporan() {
       // Simple Table
       content.innerHTML = `
         <h2 class="text-xl font-bold mb-4">Laporan Keuangan</h2>
-        
+        <div class="flex items-center gap-2 mb-4">
+          <select id="filter-keuangan" class="border p-2 rounded">
+            <option value="harian">Harian</option>
+            <option value="mingguan">Mingguan</option>
+            <option value="bulanan">Bulanan</option>
+            <option value="tahunan">Tahunan</option>
+          </select>
+          <button id="btn-export-keuangan" class="bg-purple-600 text-white px-4 py-2 rounded shadow hover:bg-purple-700">
+            Export Excel
+          </button>
+        </div>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
            <div class="bg-indigo-600 text-white p-6 rounded shadow">
              <h3>Total Omset (Semua)</h3>
@@ -799,6 +809,7 @@ function loadLaporan() {
         <h3 class="font-bold text-lg mb-2">Riwayat Transaksi</h3>
         <div class="flex items-center gap-2 mb-4">
           <select id="filter-periode" class="border p-2 rounded">
+            <option value="mingguan">Harian</option>
             <option value="mingguan">Mingguan</option>
             <option value="bulanan">Bulanan</option>
             <option value="tahunan">Tahunan</option>
