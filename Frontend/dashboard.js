@@ -1,4 +1,4 @@
-const API = "http://192.168.43.134:8080";
+const API = "http://192.168.1.9:8080";
 const token = localStorage.getItem("token");
 
 if (!token) {
@@ -63,6 +63,10 @@ document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("pos-remove-item").addEventListener("click", () => {
     posState.selectedService = null;
     renderPOSCart();
+  });
+
+  document.getElementById("pos-metode").addEventListener("change", (e) => {
+    posState.metode_pembayaran = e.target.value;
   });
 
   document.getElementById("pos-checkout").addEventListener("click", checkoutPOS);
@@ -297,7 +301,7 @@ async function checkoutPOS() {
     berat: posState.qty, // Using 'berat' column for Qty
     total: total,
     status: "proses",
-    metode_pembayaran: "Cash" // Default
+    metode_pembayaran: posState.metode_pembayaran
   };
 
   try {
@@ -321,7 +325,8 @@ async function checkoutPOS() {
         kode: body.kode,
         created_at: new Date().toISOString(),
         berat: body.berat,
-        total: body.total
+        total: body.total,
+        metode_pembayaran: body.metode_pembayaran
       };
 
       printStruk(dummyTrans, pName, posState.selectedService.nama);
