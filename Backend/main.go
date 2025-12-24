@@ -322,6 +322,18 @@ type Transaksi struct {
 }
 
 func laporanHandler(w http.ResponseWriter, r *http.Request) {
+	tipe := r.URL.Query().Get("type")
+
+	switch tipe {
+	case "riwayat":
+	
+	case "keuangan":
+		
+	default:
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte("invalid laporan type"))
+	}
+
 	//enableCORS(w)
 	auth := r.Header.Get("Authorization")
 	if auth == "" {
