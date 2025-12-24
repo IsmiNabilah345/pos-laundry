@@ -6,6 +6,10 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
+	"time"
+
+	"github.com/xuri/excelize/v2"
 )
 
 const (
@@ -383,6 +387,67 @@ func laporanHandler(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+type Transaksi struct {
+	Kode             string
+	CreatedAt        time.Time
+	PelangganNama    string
+	LayananNama      string
+	Berat            float64
+	HargaSatuan      float64
+	Total            float64
+	MetodePembayaran string
+	Status           string
+}
+
+func ExportLaporanKeuangan(transaksi []Transaksi, filename string) error {
+	f := excelize.NewFile()
+	sheet := "Laporan"
+	f.NewSheet(sheet)
+
+	// Header
+	headers := []string{
+		"Kode", "Tanggal", "Pelanggan", "Layanan",
+		"Berat/Jumlah", "Harga Satuan", "Total",
+		"Metode Pembayaran", "Status",
+	}
+	for i, h := range headers {
+		col := string(rune('A' + i))
+		f.SetCellValue(sheet, col+"1", h)
+	}
+
+	// Isi data
+	for idx, t := range transaksi {
+		row := strconv.Itoa(idx + 2) // mulai baris ke-2
+		f.SetCellValue(sheet, "A"+row, t.Kode)
+		f.SetCellValue(sheet, "B"+row, t.CreatedAt.Format("02 Jan 2006 15:04"))
+		f.SetCellValue(sheet, "C"+row, t.PelangganNama)
+		f.SetCellValue(sheet, "D"+row, t.LayananNama)
+		f.SetCellValue(sheet, "E"+row, t.Berat)
+		f.SetCellValue(sheet, "F"+row, t.HargaSatuan)
+		f.SetCellValue(sheet, "G"+row, t.Total)
+		f.SetCellValue(sheet, "H"+row, t.MetodePembayaran)
+		f.SetCellValue(sheet, "I"+row, t.Status)
+	}
+
+	// Styling header
+	style, _ := f.NewStyle(&excelize.Style{
+		Font:      &excelize.Font{Bold: true},
+		Alignment: &excelize.Alignment{Horizontal: "center"},
+	})
+	f.SetCellStyle(sheet, "A1", "I1", style)
+
+	index, err := f.GetSheetIndex(sheet)
+	if err != nil {
+		return err 
+	}
+	f.SetActiveSheet(index)
+
+	// Simpan file
+	if err := f.SaveAs(filename); err != nil {
+		return err
+	}
+	return nil
+}
 
 func main() {
 	http.HandleFunc("/login", corsMiddleware(loginHandler))
@@ -391,6 +456,26 @@ func main() {
 	http.HandleFunc("/transaksi", corsMiddleware(transaksiHandler))
 	http.HandleFunc("/layanan", corsMiddleware(layananHandler))
 	http.HandleFunc("/laporan", corsMiddleware(laporanHandler))
+	trx := []Transaksi{
+		{
+			Kode:             "TRX-123",
+			CreatedAt:        time.Now(),
+			PelangganNama:    "Ismi",
+			LayananNama:      "Cuci Kering",
+			Berat:            3,
+			HargaSatuan:      10000,
+			Total:            30000,
+			MetodePembayaran: "Cash",
+			Status:           "selesai",
+		},
+	}
+
+	if err := ExportLaporanKeuangan(trx, "Laporan_Keuangan.xlsx"); err != nil {
+		fmt.Println("Gagal export:", err)
+	} else {
+		fmt.Println("Berhasil export ke Laporan_Keuangan.xlsx")
+	}
+
 	fmt.Println("Server jalan di http://localhost:8080")
 	http.ListenAndServe(":8080", nil)
 }
