@@ -349,7 +349,7 @@ func laporanHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	transaksiURL := BaseURL + "/rest/v1/transaksi?select=*"
+	transaksiURL := BaseURL + "/rest/v1/transaksi?status=eq.selesai&select=*"
 	reqTrans, _ := http.NewRequest("GET", transaksiURL, nil)
 	reqTrans.Header.Set("Authorization", auth)
 	reqTrans.Header.Set("apikey", APIKey)
@@ -458,7 +458,7 @@ func laporanJSONHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// ambil data transaksi (ringkas)
-	transaksiURL := BaseURL + "/rest/v1/transaksi?select=created_at,total"
+	transaksiURL := BaseURL + "/rest/v1/transaksi?status=eq.selesai&select=*"
 	req, _ := http.NewRequest("GET", transaksiURL, nil)
 	req.Header.Set("Authorization", auth)
 	req.Header.Set("apikey", APIKey)
