@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"strconv"
 	"time"
@@ -308,110 +309,182 @@ func layananHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write(bodyBytes)
 }
 
+type Transaksi struct {
+	Kode             string
+	CreatedAt        time.Time
+	PelangganNama    string
+	LayananNama      string
+	Berat            float64
+	HargaSatuan      float64
+	Total            float64
+	MetodePembayaran string
+	Status           string
+}
+
 func laporanHandler(w http.ResponseWriter, r *http.Request) {
-    enableCORS(w)
-    auth := r.Header.Get("Authorization")
-    if auth == "" {
-        w.WriteHeader(http.StatusUnauthorized)
-        json.NewEncoder(w).Encode(map[string]string{"error": "missing token"})
-        return
-    }
+	//enableCORS(w)
+	auth := r.Header.Get("Authorization")
+	if auth == "" {
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(map[string]string{"error": "missing token"})
+		return
+	}
 
-    // RBAC check (admin only)
-    client := &http.Client{}
-    userURL := BaseURL + "/auth/v1/user"
-    reqUser, _ := http.NewRequest("GET", userURL, nil)
-    reqUser.Header.Set("Authorization", auth)
-    reqUser.Header.Set("apikey", APIKey)
-    resUser, err := client.Do(reqUser)
-    if err != nil {
-        w.WriteHeader(http.StatusInternalServerError)
-        return
-    }
-    defer resUser.Body.Close()
-    var userRes map[string]any
-    json.NewDecoder(resUser.Body).Decode(&userRes)
-    if email, ok := userRes["email"].(string); !ok || email != AdminEmail {
-        w.WriteHeader(http.StatusForbidden)
-        json.NewEncoder(w).Encode(map[string]string{"error": "Unauthorized"})
-        return
-    }
+	client := &http.Client{}
+	userURL := BaseURL + "/auth/v1/user"
+	reqUser, _ := http.NewRequest("GET", userURL, nil)
+	reqUser.Header.Set("Authorization", auth)
+	reqUser.Header.Set("apikey", APIKey)
+	resUser, err := client.Do(reqUser)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	defer resUser.Body.Close()
+	var userRes map[string]any
+	json.NewDecoder(resUser.Body).Decode(&userRes)
+	if email, ok := userRes["email"].(string); !ok || email != AdminEmail {
+		w.WriteHeader(http.StatusForbidden)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Unauthorized"})
+		return
+	}
 
-    // Fetch transaksi selesai
-    transaksiURL := BaseURL + "/rest/v1/transaksi?select=*"
-    reqTrans, _ := http.NewRequest("GET", transaksiURL, nil)
-    reqTrans.Header.Set("Authorization", auth)
-    reqTrans.Header.Set("apikey", APIKey)
-    resTrans, err := client.Do(reqTrans)
-    if err != nil {
-        w.WriteHeader(http.StatusInternalServerError)
-        return
-    }
-    defer resTrans.Body.Close()
+	transaksiURL := BaseURL + "/rest/v1/transaksi?select=*"
+	reqTrans, _ := http.NewRequest("GET", transaksiURL, nil)
+	reqTrans.Header.Set("Authorization", auth)
+	reqTrans.Header.Set("apikey", APIKey)
+	resTrans, err := client.Do(reqTrans)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	defer resTrans.Body.Close()
 
-    var rawList []map[string]any
-    if err := json.NewDecoder(resTrans.Body).Decode(&rawList); err != nil {
-        w.WriteHeader(http.StatusInternalServerError)
-        return
-    }
+	var rawList []map[string]any
+	if err := json.NewDecoder(resTrans.Body).Decode(&rawList); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 
-    // Convert ke []Transaksi
-    var trx []Transaksi
-    for _, item := range rawList {
-        t := Transaksi{
-            Kode:             fmt.Sprint(item["kode"]),
-            PelangganNama:    fmt.Sprint(item["pelanggan_nama"]),
-            LayananNama:      fmt.Sprint(item["layanan_nama"]),
-            MetodePembayaran: fmt.Sprint(item["metode_pembayaran"]),
-            Status:           fmt.Sprint(item["status"]),
-        }
-        if created, ok := item["created_at"].(string); ok {
-            if parsed, err := time.Parse(time.RFC3339, created); err == nil {
-                t.CreatedAt = parsed
-            }
-        }
-        if berat, ok := item["berat"].(float64); ok {
-            t.Berat = berat
-        }
-        if total, ok := item["total"].(float64); ok {
-            t.Total = total
-        }
-        trx = append(trx, t)
-    }
+	var trx []Transaksi
+	for _, item := range rawList {
+		t := Transaksi{
+			Kode:             fmt.Sprint(item["kode"]),
+			PelangganNama:    fmt.Sprint(item["pelanggan_nama"]),
+			LayananNama:      fmt.Sprint(item["layanan_nama"]),
+			MetodePembayaran: fmt.Sprint(item["metode_pembayaran"]),
+			Status:           fmt.Sprint(item["status"]),
+		}
+		if created, ok := item["created_at"].(string); ok {
+			if parsed, err := time.Parse(time.RFC3339, created); err == nil {
+				t.CreatedAt = parsed
+			}
+		}
+		if total, ok := item["total"].(float64); ok {
+			t.Total = total
+		}
+		if berat, ok := item["berat"].(float64); ok {
+			t.Berat = berat
+		}
+		if t.Berat > 0 {
+			t.HargaSatuan = t.Total / t.Berat
+			if math.IsNaN(t.HargaSatuan) || math.IsInf(t.HargaSatuan, 0) {
+				t.HargaSatuan = 0
+			}
+		}
 
-    // Buat Excel ke buffer
-    f := excelize.NewFile()
-    sheet := "Laporan"
-    f.NewSheet(sheet)
-    f.SetActiveSheet(f.GetSheetIndex(sheet))
+		trx = append(trx, t)
+	}
 
-    headers := []string{"Kode","Tanggal","Pelanggan","Layanan","Berat","Harga Satuan","Total","Metode Pembayaran","Status"}
-    for i, h := range headers {
-        col := string(rune('A' + i))
-        f.SetCellValue(sheet, col+"1", h)
-    }
-    for idx, t := range trx {
-        row := strconv.Itoa(idx + 2)
-        f.SetCellValue(sheet, "A"+row, t.Kode)
-        f.SetCellValue(sheet, "B"+row, t.CreatedAt.Format("02 Jan 2006 15:04"))
-        f.SetCellValue(sheet, "C"+row, t.PelangganNama)
-        f.SetCellValue(sheet, "D"+row, t.LayananNama)
-        f.SetCellValue(sheet, "E"+row, t.Berat)
-        f.SetCellValue(sheet, "F"+row, t.HargaSatuan)
-        f.SetCellValue(sheet, "G"+row, t.Total)
-        f.SetCellValue(sheet, "H"+row, t.MetodePembayaran)
-        f.SetCellValue(sheet, "I"+row, t.Status)
-    }
+	// Buat Excel ke buffer
+	f := excelize.NewFile()
+	sheet := "Laporan"
+	f.NewSheet(sheet)
+	index, err := f.GetSheetIndex(sheet)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	f.SetActiveSheet(index)
+	if len(trx) == 0 {
+		w.WriteHeader(http.StatusNoContent)
+		w.Write([]byte("Tidak ada data transaksi untuk diekspor"))
+		return
+	}
 
-    var buf bytes.Buffer
-    if err := f.Write(&buf); err != nil {
-        w.WriteHeader(http.StatusInternalServerError)
-        return
-    }
+	headers := []string{"Kode", "Tanggal", "Pelanggan", "Layanan", "Berat", "Harga Satuan", "Total", "Metode Pembayaran", "Status"}
+	for i, h := range headers {
+		col := string(rune('A' + i))
+		f.SetCellValue(sheet, col+"1", h)
+	}
 
-    w.Header().Set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-    w.Header().Set("Content-Disposition", "attachment; filename=Laporan_Keuangan.xlsx")
-    w.Write(buf.Bytes())
+	for idx, t := range trx {
+		row := strconv.Itoa(idx + 2)
+		f.SetCellValue(sheet, "A"+row, t.Kode)
+		f.SetCellValue(sheet, "B"+row, t.CreatedAt.Format("02 Jan 2006 15:04"))
+		f.SetCellValue(sheet, "C"+row, t.PelangganNama)
+		f.SetCellValue(sheet, "D"+row, t.LayananNama)
+		f.SetCellValue(sheet, "E"+row, t.Berat)
+		f.SetCellValue(sheet, "F"+row, t.HargaSatuan)
+		f.SetCellValue(sheet, "G"+row, t.Total)
+		f.SetCellValue(sheet, "H"+row, t.MetodePembayaran)
+		f.SetCellValue(sheet, "I"+row, t.Status)
+	}
+
+	var buf bytes.Buffer
+	if err := f.Write(&buf); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+	w.Header().Set("Content-Disposition", "attachment; filename=Laporan_Keuangan.xlsx")
+	w.Write(buf.Bytes())
+}
+
+func laporanJSONHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	auth := r.Header.Get("Authorization")
+	if auth == "" {
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(map[string]string{
+			"error": "missing token",
+		})
+		return
+	}
+
+	// ambil data transaksi (ringkas)
+	transaksiURL := BaseURL + "/rest/v1/transaksi?select=created_at,total"
+	req, _ := http.NewRequest("GET", transaksiURL, nil)
+	req.Header.Set("Authorization", auth)
+	req.Header.Set("apikey", APIKey)
+
+	client := &http.Client{}
+	res, err := client.Do(req)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	defer res.Body.Close()
+
+	var list []map[string]any
+	json.NewDecoder(res.Body).Decode(&list)
+
+	var total float64
+	for _, t := range list {
+		if v, ok := t["total"].(float64); ok {
+			total += v
+		}
+	}
+
+	json.NewEncoder(w).Encode(map[string]any{
+		"data":        list,
+		"total_omset": total,
+	})
 }
 
 func main() {
@@ -421,6 +494,7 @@ func main() {
 	http.HandleFunc("/transaksi", corsMiddleware(transaksiHandler))
 	http.HandleFunc("/layanan", corsMiddleware(layananHandler))
 	http.HandleFunc("/laporan", corsMiddleware(laporanHandler))
+	http.HandleFunc("/laporan-json", corsMiddleware(laporanJSONHandler))
 
 	fmt.Println("Server jalan di http://localhost:8080")
 	http.ListenAndServe(":8080", nil)

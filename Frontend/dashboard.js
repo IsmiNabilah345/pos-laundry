@@ -769,9 +769,10 @@ function loadLaporan() {
   const content = document.getElementById("content");
   content.innerHTML = '<p class="text-gray-500">Memuat laporan...</p>';
 
-  fetch(`${API}/laporan`, {
+  fetch(`${API}/laporan-json`, {
     headers: { Authorization: "Bearer " + token }
   })
+
     .then(res => res.json())
     .then(data => {
       if (data.error) {
