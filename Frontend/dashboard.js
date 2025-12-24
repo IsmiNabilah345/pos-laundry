@@ -862,8 +862,7 @@ function loadLaporan() {
       });
 
       document.getElementById("btn-export-keuangan").addEventListener("click", () => {
-        fetch(`${API}/laporan`, {
-          method: "GET",
+        fetch(`${API}/laporan?type=keuangan`, {
           headers: { Authorization: "Bearer " + token }
         })
           .then(res => res.blob())
@@ -872,8 +871,7 @@ function loadLaporan() {
             a.href = URL.createObjectURL(blob);
             a.download = "Laporan_Keuangan.xlsx";
             a.click();
-          })
-          .catch(err => alert("Gagal export: " + err.message));
+          });
       });
     })
     .catch(err => {
