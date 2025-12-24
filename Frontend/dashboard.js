@@ -769,24 +769,20 @@ function loadLaporan() {
   const content = document.getElementById("content");
   content.innerHTML = '<p class="text-gray-500">Memuat laporan...</p>';
 
-  fetch(`${API}/laporan-json`, {
-    headers: { Authorization: "Bearer " + token }
-  })
+  Promise.all([
+    fetch(`${API}/laporan?type=riwayat`, { headers: { Authorization: "Bearer " + token } }).then(r => r.json()),
+    fetch(`${API}/laporan?type=keuangan`, { headers: { Authorization: "Bearer " + token } }).then(r => r.json())
+  ])
+    .then(([riwayatRes, keuanganRes]) => {
+      const items = riwayatRes.data || [];
+      const totalOmset = keuanganRes.total_omset || 0;
 
-    .then(res => res.json())
-    .then(data => {
-      if (data.error) {
-        content.innerHTML = `<p class="text-red-500">Error: ${data.error}</p>`;
-        return;
-      }
-
-      const items = data.data || [];
       const today = new Date().toLocaleDateString("id-ID");
       const daily = items.filter(i => {
         const tanggalTransaksi = new Date(i.created_at).toLocaleDateString("id-ID");
         return tanggalTransaksi === today;
       });
-      const dailyTotal = daily.reduce((acc, curr) => acc + (parseFloat(curr.total) || 0), 0);
+      const dailyTotal = daily.reduce((acc, curr) => acc + (Number(curr.total) || 0), 0);
 
       content.innerHTML = `
         <h2 class="text-xl font-bold mb-4">Laporan Keuangan</h2>
@@ -804,7 +800,7 @@ function loadLaporan() {
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
            <div class="bg-indigo-600 text-white p-6 rounded shadow">
              <h3>Total Omset (Semua)</h3>
-             <p class="text-2xl font-bold">${rupiah(data.total_omset)}</p>
+             <p class="text-2xl font-bold">${rupiah(totalOmset)}</p>
            </div>
            <div class="bg-green-600 text-white p-6 rounded shadow">
              <h3>Omset Hari Ini (${today})</h3>
@@ -836,7 +832,7 @@ function loadLaporan() {
                ${items.map(i => `
                   <tr>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      ${i.created_at.split('T')[0]} ${i.created_at.split('T')[1].split('.')[0]}
+                      ${i.created_at? new Date(i.created_at).toLocaleString("id-ID"): "-"}
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
                       ${rupiah(i.total)}
@@ -849,7 +845,7 @@ function loadLaporan() {
       `;
 
       document.getElementById("btn-export").addEventListener("click", () => {
-        fetch(`${API}/laporan?type=riwayat`, {
+        fetch(`${API}/laporan/export?type=riwayat`, {
           headers: { Authorization: "Bearer " + token }
         })
           .then(res => res.blob())
@@ -862,7 +858,7 @@ function loadLaporan() {
       });
 
       document.getElementById("btn-export-keuangan").addEventListener("click", () => {
-        fetch(`${API}/laporan?type=keuangan`, {
+        fetch(`${API}/laporan/export?type=keuangan`, {
           headers: { Authorization: "Bearer " + token }
         })
           .then(res => res.blob())
