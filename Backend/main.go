@@ -7,10 +7,7 @@ import (
 	"io"
 	"math"
 	"net/http"
-	"strconv"
 	"time"
-
-	"github.com/xuri/excelize/v2"
 )
 
 const (
@@ -321,16 +318,22 @@ type Transaksi struct {
 }
 
 func laporanHandler(w http.ResponseWriter, r *http.Request) {
+	var transaksiURL string
 	tipe := r.URL.Query().Get("type")
 
 	switch tipe {
 	case "riwayat":
+		transaksiURL = BaseURL +
+			"/rest/v1/transaksi?status=eq.selesai&select=kode,created_at,berat,total,metode_pembayaran,status,pelanggan(nama),layanan(nama)"
 
 	case "keuangan":
+		transaksiURL = BaseURL +
+			"/rest/v1/transaksi?status=eq.selesai&select=created_at,total"
 
 	default:
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte("invalid laporan type"))
+		return
 	}
 
 	//enableCORS(w)
@@ -360,7 +363,6 @@ func laporanHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	transaksiURL := BaseURL + "/rest/v1/transaksi?status=eq.selesai&select=kode,created_at,berat,total,metode_pembayaran,status,pelanggan(nama),layanan(nama)"
 	reqTrans, _ := http.NewRequest("GET", transaksiURL, nil)
 	reqTrans.Header.Set("Authorization", auth)
 	reqTrans.Header.Set("apikey", APIKey)
@@ -415,50 +417,55 @@ func laporanHandler(w http.ResponseWriter, r *http.Request) {
 		trx = append(trx, t)
 	}
 
-	// Buat Excel ke buffer
-	f := excelize.NewFile()
-	sheet := "Laporan"
-	f.NewSheet(sheet)
-	index, err := f.GetSheetIndex(sheet)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-	f.SetActiveSheet(index)
-	if len(trx) == 0 {
-		w.WriteHeader(http.StatusNoContent)
-		w.Write([]byte("Tidak ada data transaksi untuk diekspor"))
-		return
-	}
+	// // Buat Excel ke buffer
+	// f := excelize.NewFile()
+	// sheet := "Laporan"
+	// f.NewSheet(sheet)
+	// index, err := f.GetSheetIndex(sheet)
+	// if err != nil {
+	// 	w.WriteHeader(http.StatusInternalServerError)
+	// 	return
+	// }
+	// f.SetActiveSheet(index)
+	// if len(trx) == 0 {
+	// 	w.WriteHeader(http.StatusNoContent)
+	// 	w.Write([]byte("Tidak ada data transaksi untuk diekspor"))
+	// 	return
+	// }
 
-	headers := []string{"Kode", "Tanggal", "Pelanggan", "Layanan", "Berat", "Harga Satuan", "Total", "Metode Pembayaran", "Status"}
-	for i, h := range headers {
-		col := string(rune('A' + i))
-		f.SetCellValue(sheet, col+"1", h)
-	}
+	// headers := []string{"Kode", "Tanggal", "Pelanggan", "Layanan", "Berat", "Harga Satuan", "Total", "Metode Pembayaran", "Status"}
+	// for i, h := range headers {
+	// 	col := string(rune('A' + i))
+	// 	f.SetCellValue(sheet, col+"1", h)
+	// }
 
-	for idx, t := range trx {
-		row := strconv.Itoa(idx + 2)
-		f.SetCellValue(sheet, "A"+row, t.Kode)
-		f.SetCellValue(sheet, "B"+row, t.CreatedAt.Format("02 Jan 2006 15:04"))
-		f.SetCellValue(sheet, "C"+row, t.PelangganNama)
-		f.SetCellValue(sheet, "D"+row, t.LayananNama)
-		f.SetCellValue(sheet, "E"+row, t.Berat)
-		f.SetCellValue(sheet, "F"+row, t.HargaSatuan)
-		f.SetCellValue(sheet, "G"+row, t.Total)
-		f.SetCellValue(sheet, "H"+row, t.MetodePembayaran)
-		f.SetCellValue(sheet, "I"+row, t.Status)
-	}
+	// for idx, t := range trx {
+	// 	row := strconv.Itoa(idx + 2)
+	// 	f.SetCellValue(sheet, "A"+row, t.Kode)
+	// 	f.SetCellValue(sheet, "B"+row, t.CreatedAt.Format("02 Jan 2006 15:04"))
+	// 	f.SetCellValue(sheet, "C"+row, t.PelangganNama)
+	// 	f.SetCellValue(sheet, "D"+row, t.LayananNama)
+	// 	f.SetCellValue(sheet, "E"+row, t.Berat)
+	// 	f.SetCellValue(sheet, "F"+row, t.HargaSatuan)
+	// 	f.SetCellValue(sheet, "G"+row, t.Total)
+	// 	f.SetCellValue(sheet, "H"+row, t.MetodePembayaran)
+	// 	f.SetCellValue(sheet, "I"+row, t.Status)
+	// }
 
-	var buf bytes.Buffer
-	if err := f.Write(&buf); err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
+	// var buf bytes.Buffer
+	// if err := f.Write(&buf); err != nil {
+	// 	w.WriteHeader(http.StatusInternalServerError)
+	// 	return
+	// }
 
-	w.Header().Set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-	w.Header().Set("Content-Disposition", "attachment; filename=Laporan_Keuangan.xlsx")
-	w.Write(buf.Bytes())
+	// w.Header().Set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+	// w.Header().Set("Content-Disposition", "attachment; filename=Laporan_Keuangan.xlsx")
+	// w.Write(buf.Bytes())
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(trx)
+	return
+
 }
 
 func laporanJSONHandler(w http.ResponseWriter, r *http.Request) {
