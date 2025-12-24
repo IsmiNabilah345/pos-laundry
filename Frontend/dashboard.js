@@ -1,4 +1,4 @@
-const API = "http://192.168.203.107:8080";
+const API = "http://192.168.43.134:8080";
 const token = localStorage.getItem("token");
 
 if (!token) {
@@ -849,18 +849,16 @@ function loadLaporan() {
       `;
 
       document.getElementById("btn-export").addEventListener("click", () => {
-        fetch(`${API}/laporan`, {
-          method: "GET",
+        fetch(`${API}/laporan?type=riwayat`, {
           headers: { Authorization: "Bearer " + token }
         })
           .then(res => res.blob())
           .then(blob => {
             const a = document.createElement("a");
             a.href = URL.createObjectURL(blob);
-            a.download = "Laporan_Keuangan.xlsx";
+            a.download = "Riwayat_Transaksi.xlsx";
             a.click();
-          })
-          .catch(err => alert("Gagal export: " + err.message));
+          });
       });
 
       document.getElementById("btn-export-keuangan").addEventListener("click", () => {
