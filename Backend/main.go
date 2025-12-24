@@ -148,7 +148,6 @@ func dashboardHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	//nanti diubah jadi per 10 transaksi terakhir supaya tidak lemot ketika banyak data
 	transaksiURL := BaseURL + "/rest/v1/transaksi?select=*&order=created_at.desc"
 	reqTrans, _ := http.NewRequest("GET", transaksiURL, nil)
 	reqTrans.Header.Set("Authorization", auth)
@@ -326,9 +325,9 @@ func laporanHandler(w http.ResponseWriter, r *http.Request) {
 
 	switch tipe {
 	case "riwayat":
-	
+
 	case "keuangan":
-		
+
 	default:
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte("invalid laporan type"))
@@ -361,7 +360,7 @@ func laporanHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	transaksiURL := BaseURL + "/rest/v1/transaksi?status=eq.selesai&select=*"
+	transaksiURL := BaseURL + "/rest/v1/transaksi?status=eq.selesai&select=kode,created_at,berat,total,metode_pembayaran,status,pelanggan(nama),layanan(nama)"
 	reqTrans, _ := http.NewRequest("GET", transaksiURL, nil)
 	reqTrans.Header.Set("Authorization", auth)
 	reqTrans.Header.Set("apikey", APIKey)
@@ -387,6 +386,14 @@ func laporanHandler(w http.ResponseWriter, r *http.Request) {
 			MetodePembayaran: fmt.Sprint(item["metode_pembayaran"]),
 			Status:           fmt.Sprint(item["status"]),
 		}
+		if p, ok := item["pelanggan"].(map[string]any); ok {
+			t.PelangganNama = fmt.Sprint(p["nama"])
+		}
+
+		if l, ok := item["layanan"].(map[string]any); ok {
+			t.LayananNama = fmt.Sprint(l["nama"])
+		}
+
 		if created, ok := item["created_at"].(string); ok {
 			if parsed, err := time.Parse(time.RFC3339, created); err == nil {
 				t.CreatedAt = parsed
