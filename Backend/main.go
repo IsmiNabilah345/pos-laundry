@@ -309,144 +309,109 @@ func layananHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func laporanHandler(w http.ResponseWriter, r *http.Request) {
-	enableCORS(w)
-	auth := r.Header.Get("Authorization")
-	if auth == "" {
-		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(map[string]string{"error": "missing token"})
-		return
-	}
+    enableCORS(w)
+    auth := r.Header.Get("Authorization")
+    if auth == "" {
+        w.WriteHeader(http.StatusUnauthorized)
+        json.NewEncoder(w).Encode(map[string]string{"error": "missing token"})
+        return
+    }
 
-	// RBAC Check for View Reports (Optional? User asked to create reports)
-	// We will enforce Admin only for reports as implied by "Admin vs Kasir" request
-	client := &http.Client{}
-	userURL := BaseURL + "/auth/v1/user"
-	reqUser, _ := http.NewRequest("GET", userURL, nil)
-	reqUser.Header.Set("Authorization", auth)
-	reqUser.Header.Set("apikey", APIKey)
-	resUser, err := client.Do(reqUser)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-	defer resUser.Body.Close()
-	var userRes map[string]any
-	json.NewDecoder(resUser.Body).Decode(&userRes)
-	if email, ok := userRes["email"].(string); !ok || email != AdminEmail {
-		w.WriteHeader(http.StatusForbidden)
-		json.NewEncoder(w).Encode(map[string]string{"error": "Unauthorized"})
-		return
-	}
+    // RBAC check (admin only)
+    client := &http.Client{}
+    userURL := BaseURL + "/auth/v1/user"
+    reqUser, _ := http.NewRequest("GET", userURL, nil)
+    reqUser.Header.Set("Authorization", auth)
+    reqUser.Header.Set("apikey", APIKey)
+    resUser, err := client.Do(reqUser)
+    if err != nil {
+        w.WriteHeader(http.StatusInternalServerError)
+        return
+    }
+    defer resUser.Body.Close()
+    var userRes map[string]any
+    json.NewDecoder(resUser.Body).Decode(&userRes)
+    if email, ok := userRes["email"].(string); !ok || email != AdminEmail {
+        w.WriteHeader(http.StatusForbidden)
+        json.NewEncoder(w).Encode(map[string]string{"error": "Unauthorized"})
+        return
+    }
 
-	// Fetch ALL transactions
-	// Warning: Fetching *all* might be heavy, but for POS MVP it's fine.
-	transaksiURL := BaseURL + "/rest/v1/transaksi?select=*&status=eq.selesai"
-	reqTrans, _ := http.NewRequest("GET", transaksiURL, nil)
-	reqTrans.Header.Set("Authorization", auth)
-	reqTrans.Header.Set("apikey", APIKey)
+    // Fetch transaksi selesai
+    transaksiURL := BaseURL + "/rest/v1/transaksi?select=*"
+    reqTrans, _ := http.NewRequest("GET", transaksiURL, nil)
+    reqTrans.Header.Set("Authorization", auth)
+    reqTrans.Header.Set("apikey", APIKey)
+    resTrans, err := client.Do(reqTrans)
+    if err != nil {
+        w.WriteHeader(http.StatusInternalServerError)
+        return
+    }
+    defer resTrans.Body.Close()
 
-	resTrans, err := client.Do(reqTrans)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"error": "supabase error"})
-		return
-	}
-	defer resTrans.Body.Close()
+    var rawList []map[string]any
+    if err := json.NewDecoder(resTrans.Body).Decode(&rawList); err != nil {
+        w.WriteHeader(http.StatusInternalServerError)
+        return
+    }
 
-	// Let's use map to be safe
+    // Convert ke []Transaksi
+    var trx []Transaksi
+    for _, item := range rawList {
+        t := Transaksi{
+            Kode:             fmt.Sprint(item["kode"]),
+            PelangganNama:    fmt.Sprint(item["pelanggan_nama"]),
+            LayananNama:      fmt.Sprint(item["layanan_nama"]),
+            MetodePembayaran: fmt.Sprint(item["metode_pembayaran"]),
+            Status:           fmt.Sprint(item["status"]),
+        }
+        if created, ok := item["created_at"].(string); ok {
+            if parsed, err := time.Parse(time.RFC3339, created); err == nil {
+                t.CreatedAt = parsed
+            }
+        }
+        if berat, ok := item["berat"].(float64); ok {
+            t.Berat = berat
+        }
+        if total, ok := item["total"].(float64); ok {
+            t.Total = total
+        }
+        trx = append(trx, t)
+    }
 
-	// Let's use map to be safe
-	var rawList []map[string]any
-	if err := json.NewDecoder(resTrans.Body).Decode(&rawList); err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"error": "decode error"})
-		return
-	}
+    // Buat Excel ke buffer
+    f := excelize.NewFile()
+    sheet := "Laporan"
+    f.NewSheet(sheet)
+    f.SetActiveSheet(f.GetSheetIndex(sheet))
 
-	totalOmset := 0.0
-	count := 0
+    headers := []string{"Kode","Tanggal","Pelanggan","Layanan","Berat","Harga Satuan","Total","Metode Pembayaran","Status"}
+    for i, h := range headers {
+        col := string(rune('A' + i))
+        f.SetCellValue(sheet, col+"1", h)
+    }
+    for idx, t := range trx {
+        row := strconv.Itoa(idx + 2)
+        f.SetCellValue(sheet, "A"+row, t.Kode)
+        f.SetCellValue(sheet, "B"+row, t.CreatedAt.Format("02 Jan 2006 15:04"))
+        f.SetCellValue(sheet, "C"+row, t.PelangganNama)
+        f.SetCellValue(sheet, "D"+row, t.LayananNama)
+        f.SetCellValue(sheet, "E"+row, t.Berat)
+        f.SetCellValue(sheet, "F"+row, t.HargaSatuan)
+        f.SetCellValue(sheet, "G"+row, t.Total)
+        f.SetCellValue(sheet, "H"+row, t.MetodePembayaran)
+        f.SetCellValue(sheet, "I"+row, t.Status)
+    }
 
-	for _, item := range rawList {
-		// Parse Total
-		var val float64
-		switch v := item["total"].(type) {
-		case string:
-			fmt.Sscanf(v, "%f", &val)
-		case float64:
-			val = v
-		}
-		totalOmset += val
-		count++
-	}
+    var buf bytes.Buffer
+    if err := f.Write(&buf); err != nil {
+        w.WriteHeader(http.StatusInternalServerError)
+        return
+    }
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]any{
-		"total_omset":     totalOmset,
-		"total_transaksi": count,
-		"data":            rawList, // Send raw data to frontend for grouping
-	})
-}
-
-type Transaksi struct {
-	Kode             string
-	CreatedAt        time.Time
-	PelangganNama    string
-	LayananNama      string
-	Berat            float64
-	HargaSatuan      float64
-	Total            float64
-	MetodePembayaran string
-	Status           string
-}
-
-func ExportLaporanKeuangan(transaksi []Transaksi, filename string) error {
-	f := excelize.NewFile()
-	sheet := "Laporan"
-	f.NewSheet(sheet)
-
-	// Header
-	headers := []string{
-		"Kode", "Tanggal", "Pelanggan", "Layanan",
-		"Berat/Jumlah", "Harga Satuan", "Total",
-		"Metode Pembayaran", "Status",
-	}
-	for i, h := range headers {
-		col := string(rune('A' + i))
-		f.SetCellValue(sheet, col+"1", h)
-	}
-
-	// Isi data
-	for idx, t := range transaksi {
-		row := strconv.Itoa(idx + 2) // mulai baris ke-2
-		f.SetCellValue(sheet, "A"+row, t.Kode)
-		f.SetCellValue(sheet, "B"+row, t.CreatedAt.Format("02 Jan 2006 15:04"))
-		f.SetCellValue(sheet, "C"+row, t.PelangganNama)
-		f.SetCellValue(sheet, "D"+row, t.LayananNama)
-		f.SetCellValue(sheet, "E"+row, t.Berat)
-		f.SetCellValue(sheet, "F"+row, t.HargaSatuan)
-		f.SetCellValue(sheet, "G"+row, t.Total)
-		f.SetCellValue(sheet, "H"+row, t.MetodePembayaran)
-		f.SetCellValue(sheet, "I"+row, t.Status)
-	}
-
-	// Styling header
-	style, _ := f.NewStyle(&excelize.Style{
-		Font:      &excelize.Font{Bold: true},
-		Alignment: &excelize.Alignment{Horizontal: "center"},
-	})
-	f.SetCellStyle(sheet, "A1", "I1", style)
-
-	index, err := f.GetSheetIndex(sheet)
-	if err != nil {
-		return err 
-	}
-	f.SetActiveSheet(index)
-
-	// Simpan file
-	if err := f.SaveAs(filename); err != nil {
-		return err
-	}
-	return nil
+    w.Header().Set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    w.Header().Set("Content-Disposition", "attachment; filename=Laporan_Keuangan.xlsx")
+    w.Write(buf.Bytes())
 }
 
 func main() {
@@ -456,25 +421,6 @@ func main() {
 	http.HandleFunc("/transaksi", corsMiddleware(transaksiHandler))
 	http.HandleFunc("/layanan", corsMiddleware(layananHandler))
 	http.HandleFunc("/laporan", corsMiddleware(laporanHandler))
-	trx := []Transaksi{
-		{
-			Kode:             "TRX-123",
-			CreatedAt:        time.Now(),
-			PelangganNama:    "Ismi",
-			LayananNama:      "Cuci Kering",
-			Berat:            3,
-			HargaSatuan:      10000,
-			Total:            30000,
-			MetodePembayaran: "Cash",
-			Status:           "selesai",
-		},
-	}
-
-	if err := ExportLaporanKeuangan(trx, "Laporan_Keuangan.xlsx"); err != nil {
-		fmt.Println("Gagal export:", err)
-	} else {
-		fmt.Println("Berhasil export ke Laporan_Keuangan.xlsx")
-	}
 
 	fmt.Println("Server jalan di http://localhost:8080")
 	http.ListenAndServe(":8080", nil)

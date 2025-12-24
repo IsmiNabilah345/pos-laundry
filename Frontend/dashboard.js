@@ -780,18 +780,13 @@ function loadLaporan() {
       }
 
       const items = data.data || [];
-
-      // Calculate Stats
       const today = new Date().toLocaleDateString("id-ID");
-
       const daily = items.filter(i => {
         const tanggalTransaksi = new Date(i.created_at).toLocaleDateString("id-ID");
         return tanggalTransaksi === today;
       });
-
       const dailyTotal = daily.reduce((acc, curr) => acc + (parseFloat(curr.total) || 0), 0);
 
-      // Simple Table
       content.innerHTML = `
         <h2 class="text-xl font-bold mb-4">Laporan Keuangan</h2>
         <div class="flex items-center gap-2 mb-4">
@@ -819,7 +814,7 @@ function loadLaporan() {
         <h3 class="font-bold text-lg mb-2">Riwayat Transaksi</h3>
         <div class="flex items-center gap-2 mb-4">
           <select id="filter-periode" class="border p-2 rounded">
-            <option value="mingguan">Harian</option>
+            <option value="harian">Harian</option>
             <option value="mingguan">Mingguan</option>
             <option value="bulanan">Bulanan</option>
             <option value="tahunan">Tahunan</option>
@@ -839,14 +834,48 @@ function loadLaporan() {
              <tbody class="divide-y divide-gray-200">
                ${items.map(i => `
                   <tr>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${i.created_at.split('T')[0]} ${i.created_at.split('T')[1].split('.')[0]}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">${rupiah(i.total)}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      ${i.created_at.split('T')[0]} ${i.created_at.split('T')[1].split('.')[0]}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
+                      ${rupiah(i.total)}
+                    </td>
                   </tr>
                `).join('')}
              </tbody>
            </table>
         </div>
       `;
+
+      document.getElementById("btn-export").addEventListener("click", () => {
+        fetch(`${API}/laporan`, {
+          method: "GET",
+          headers: { Authorization: "Bearer " + token }
+        })
+          .then(res => res.blob())
+          .then(blob => {
+            const a = document.createElement("a");
+            a.href = URL.createObjectURL(blob);
+            a.download = "Laporan_Keuangan.xlsx";
+            a.click();
+          })
+          .catch(err => alert("Gagal export: " + err.message));
+      });
+
+      document.getElementById("btn-export-keuangan").addEventListener("click", () => {
+        fetch(`${API}/laporan`, {
+          method: "GET",
+          headers: { Authorization: "Bearer " + token }
+        })
+          .then(res => res.blob())
+          .then(blob => {
+            const a = document.createElement("a");
+            a.href = URL.createObjectURL(blob);
+            a.download = "Laporan_Keuangan.xlsx";
+            a.click();
+          })
+          .catch(err => alert("Gagal export: " + err.message));
+      });
     })
     .catch(err => {
       content.innerHTML = `<p class="text-red-500">Gagal memuat laporan: ${err.message}</p>`;
