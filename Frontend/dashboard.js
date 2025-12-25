@@ -774,15 +774,37 @@ function loadLaporan() {
     fetch(`${API}/laporan?type=keuangan`, { headers: { Authorization: "Bearer " + token } }).then(r => r.json())
   ])
     .then(([riwayatRes, keuanganRes]) => {
-      const items = riwayatRes.data || [];
-      const totalOmset = keuanganRes.total_omset || 0;
+      const items = riwayatRes.data;
+      const selesaiItems = items.filter(i =>
+        (i.status || "").trim().toLowerCase() === "selesai"
+      );
 
-      const today = new Date().toLocaleDateString("id-ID");
-      const daily = items.filter(i => {
-        const tanggalTransaksi = new Date(i.created_at).toLocaleDateString("id-ID");
-        return tanggalTransaksi === today;
+      const totalOmset = keuanganRes.total_omset ?? 0;
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const todayDate = new Date();
+      const todayLabel = todayDate.toLocaleDateString("id-ID");
+
+      const latestDate = new Date(
+        Math.max(...selesaiItems.map(i => new Date(i.created_at)))
+      );
+      latestDate.setHours(0, 0, 0, 0);
+
+      const daily = selesaiItems.filter(i => {
+        const t = new Date(i.created_at);
+        t.setHours(0, 0, 0, 0);
+        return t.getTime() === latestDate.getTime();
       });
-      const dailyTotal = daily.reduce((acc, curr) => acc + (Number(curr.total) || 0), 0);
+
+      const dailyTotal = daily.reduce(
+        (acc, curr) => acc + (Number(curr.total) || 0),
+        0
+      );
+
+      console.log("TODAY LOCAL:", today);
+      console.log("CREATED LOCAL:", selesaiItems.map(i => new Date(i.created_at)));
 
       content.innerHTML = `
         <h2 class="text-xl font-bold mb-4">Laporan Keuangan</h2>
@@ -803,7 +825,7 @@ function loadLaporan() {
              <p class="text-2xl font-bold">${rupiah(totalOmset)}</p>
            </div>
            <div class="bg-green-600 text-white p-6 rounded shadow">
-             <h3>Omset Hari Ini (${today})</h3>
+             <h3>Omset Hari Terakhir. Tanggal Hari ini = (${todayLabel})</h3>
              <p class="text-2xl font-bold">${rupiah(dailyTotal)}</p>
            </div>
         </div>
@@ -832,7 +854,7 @@ function loadLaporan() {
                ${items.map(i => `
                   <tr>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      ${i.created_at? new Date(i.created_at).toLocaleString("id-ID"): "-"}
+                      ${i.created_at ? new Date(i.created_at).toLocaleString("id-ID") : "-"}
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
                       ${rupiah(i.total)}
