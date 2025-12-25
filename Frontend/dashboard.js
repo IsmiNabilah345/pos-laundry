@@ -294,14 +294,17 @@ async function checkoutPOS() {
   if (!confirm(confirmMsg)) return;
 
   const total = posState.selectedService.harga * posState.qty;
+
+  const metode = document.getElementById("pos-metode").value;
+
   const body = {
-    kode: "TRX-" + Math.floor(Math.random() * 100000), // Random Code
+    kode: "TRX-" + Math.floor(Math.random() * 100000),
     pelanggan_id: pelangganId,
     layanan_id: posState.selectedService.id,
-    berat: posState.qty, // Using 'berat' column for Qty
+    berat: posState.qty, 
     total: total,
     status: "proses",
-    metode_pembayaran: posState.metode_pembayaran
+    metode_pembayaran: metode
   };
 
   try {
