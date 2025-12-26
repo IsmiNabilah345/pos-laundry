@@ -1,4 +1,4 @@
-const API = "http://192.168.43.134:8080";
+const API = "http://localhost:8080";
 const token = localStorage.getItem("token");
 
 if (!token) {
@@ -301,7 +301,7 @@ async function checkoutPOS() {
     kode: "TRX-" + Math.floor(Math.random() * 100000),
     pelanggan_id: pelangganId,
     layanan_id: posState.selectedService.id,
-    berat: posState.qty, 
+    berat: posState.qty,
     total: total,
     status: "proses",
     metode_pembayaran: metode
