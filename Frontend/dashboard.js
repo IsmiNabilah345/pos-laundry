@@ -460,11 +460,30 @@ function loadPelanggan() {
             telepon: document.getElementById("telepon").value,
             alamat: document.getElementById("alamat").value
           };
+
+          const saveBtn = document.getElementById("modal-save");
+          saveBtn.disabled = true;
+          saveBtn.innerText = "Menyimpan...";
+
           fetch(`${API}/pelanggan`, {
             method: "POST",
             headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
             body: JSON.stringify(body)
-          }).then(() => { closeModal(); loadPelanggan(); });
+          }).then(async (res) => {
+            if (!res.ok) {
+              const err = await res.json();
+              alert("Gagal menambah pelanggan: " + (err.error || err.message || JSON.stringify(err)));
+            } else {
+              closeModal();
+              loadPelanggan();
+            }
+          }).catch(err => alert("Error: " + err.message))
+            .finally(() => {
+              if (document.getElementById("modal-save")) {
+                document.getElementById("modal-save").disabled = false;
+                document.getElementById("modal-save").innerText = "Simpan";
+              }
+            });
         });
       });
 
