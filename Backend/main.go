@@ -217,12 +217,19 @@ func pelangganHandler(w http.ResponseWriter, r *http.Request) {
 
 	resSup, err := client.Do(reqSup)
 	if err != nil {
+		fmt.Println("Error req Supabase:", err)
 		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
 		return
 	}
 	defer resSup.Body.Close()
 
 	bodyBytes, _ := io.ReadAll(resSup.Body)
+
+	if resSup.StatusCode >= 400 {
+		fmt.Println("Supabase Error (Pelanggan):", string(bodyBytes))
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(resSup.StatusCode)
 	w.Write(bodyBytes)
