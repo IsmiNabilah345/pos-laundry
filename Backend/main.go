@@ -11,14 +11,10 @@ import (
 	"strings"
 	"time"
 
+	"golang.org/x/crypto/bcrypt"
+
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/xuri/excelize/v2"
-)
-
-const (
-	BaseURL   = "https://ndvwwttqjcbkdrnkbsok.supabase.co"
-	APIKey    = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5kdnd3dHRxamNia2Rybmtic29rIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU5OTIzMzYsImV4cCI6MjA4MTU2ODMzNn0.LWSuFIeQn7WhS3ncYFDd3BxOLXvgtmKiTMgci9xNuLM"
-	JWTSecret = "rahasia-pos-laundry-2025" // Secret Key Backend
 )
 
 type User struct {
@@ -127,10 +123,11 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 
 	user := users[0]
 
-	// 2. Cek Password (Plain text)
-	if user.Password != req.Password {
+	if !CheckPasswordHash(req.Password, user.Password) {
 		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(map[string]string{"error": "Password salah"})
+		json.NewEncoder(w).Encode(map[string]string{
+			"error": "Password salah",
+		})
 		return
 	}
 
@@ -153,6 +150,16 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 		"access_token": tokenString,
 		"role":         user.Role,
 	})
+}
+
+func HashPassword(password string) (string, error) {
+	bytes, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	return string(bytes), err
+}
+
+func CheckPasswordHash(password, hash string) bool {
+	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
+	return err == nil
 }
 
 func dashboardHandler(w http.ResponseWriter, r *http.Request) {
