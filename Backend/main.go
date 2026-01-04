@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/url"
 	"net/http"
 	"strconv"
 	"strings"
@@ -446,7 +447,6 @@ func layananHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// RBAC: Hanya Admin yang boleh Post/Delete/Patch/Put
 	method := r.Method
 	if method == http.MethodPost || method == http.MethodDelete || method == http.MethodPatch || method == http.MethodPut {
 		role, _ := claims["role"].(string)
@@ -457,19 +457,45 @@ func layananHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	query := r.URL.Query()
+	page, _ := strconv.Atoi(query.Get("page"))
+	limit, _ := strconv.Atoi(query.Get("limit"))
+	searchTerm := query.Get("search")
+
+	bodyBytes, _ := io.ReadAll(r.Body)
+	r.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+
 	fullURL := BaseURL + "/rest/v1/layanan"
-	if r.URL.RawQuery != "" {
-		fullURL += "?" + r.URL.RawQuery
+	params := url.Values{}
+	params.Add("select", "*")
+
+	if method == http.MethodGet && searchTerm != "" {
+		params.Add("nama", "ilike.*"+searchTerm+"*")
 	}
 
-	buf := new(bytes.Buffer)
-	buf.ReadFrom(r.Body)
+	query.Del("page")
+	query.Del("limit")
+	query.Del("search")
+	for k, v := range query {
+		params.Add(k, v[0])
+	}
+
+	fullURL += "?" + params.Encode()
 
 	client := &http.Client{}
-	reqSup, _ := http.NewRequest(method, fullURL, buf)
+	reqSup, _ := http.NewRequest(method, fullURL, bytes.NewBuffer(bodyBytes))
 	reqSup.Header.Set("Content-Type", "application/json")
 	reqSup.Header.Set("apikey", APIKey)
 	reqSup.Header.Set("Authorization", "Bearer "+APIKey)
+
+	if method == http.MethodGet && page > 0 {
+		if limit < 1 {
+			limit = 10
+		}
+		from := (page - 1) * limit
+		to := from + limit - 1
+		reqSup.Header.Set("Range", fmt.Sprintf("%d-%d", from, to))
+	}
 
 	resSup, err := client.Do(reqSup)
 	if err != nil {
@@ -478,12 +504,11 @@ func layananHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer resSup.Body.Close()
 
-	bodyBytes, _ := io.ReadAll(resSup.Body)
+	resBody, _ := io.ReadAll(resSup.Body)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(resSup.StatusCode)
-	w.Write(bodyBytes)
+	w.Write(resBody)
 }
-
 type Transaksi struct {
 	Kode             string     `json:"kode"`
 	CreatedAt        time.Time  `json:"created_at"`

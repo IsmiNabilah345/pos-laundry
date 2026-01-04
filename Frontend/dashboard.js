@@ -18,6 +18,12 @@ const pelangganLimit = 6;
 let searchTimeout;
 let currentSearch = "";
 
+
+let layananPage = 1;
+const layananLimit = 6;
+let currentSearchLayanan = "";
+let searchLayananTimeout;
+
 document.addEventListener("DOMContentLoaded", () => {
   const page = localStorage.getItem("currentPage") || "dashboard";
   if (page === "transaksi") loadTransaksi();
@@ -462,9 +468,8 @@ function loadPelanggan(searchKeyword = "") {
             Previous
           </button>
           
-          <div class="text-center">
-            <span class="font-bold text-sm text-gray-600">Halaman</span>
-            <span>${pelangganPage}</span>
+          <div class="text-sm font-medium text-gray-500">
+            Halaman <span class="text-blue-600 font-bold">${pelangganPage}</span>
           </div>
 
           <button onclick="nextPagePelanggan()" class="bg-white border px-4 py-2 rounded shadow-sm hover:bg-gray-100 disabled:opacity-50 font-bold text-gray-600"
@@ -579,8 +584,15 @@ function attachPelangganEvents(rows) {
   });
 }
 
-function loadLayanan() {
-  fetch(`${API}/layanan`, {
+function loadLayanan(searchKeyword = "") {
+  currentSearchLayanan = searchKeyword;
+
+  let url = `${API}/layanan?page=${layananPage}&limit=${layananLimit}`;
+  if (currentSearchLayanan) {
+    url += `&search=${encodeURIComponent(currentSearchLayanan)}`;
+  }
+
+  fetch(url, {
     headers: { Authorization: "Bearer " + token }
   })
     .then(res => res.json())
@@ -590,12 +602,47 @@ function loadLayanan() {
       const isAdmin = localStorage.getItem("role") === "admin";
 
       content.innerHTML = `
-        <h2 class="text-xl font-bold mb-4">Data Layanan</h2>
-        ${isAdmin ? `<button id="btn-tambah" class="bg-blue-600 text-white px-4 py-2 rounded mb-4 shadow hover:bg-blue-700">Tambah Layanan</button>` : '<div class="mb-4 text-gray-500 italic">Mode Kasir: Anda hanya dapat melihat layanan.</div>'}
-        <div class="bg-white shadow rounded-lg overflow-x-auto border border-gray-200">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-xl font-bold text-gray-800">Data Layanan</h2>
+        </div>
+
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
+          ${isAdmin ? `<button id="btn-tambah" class="bg-blue-600 text-white px-4 py-2 rounded shadow hover:bg-blue-700 transition">Tambah Layanan</button>` : '<div class="text-gray-500 italic text-sm underline">Mode Kasir: View Only</div>'}
+        </div>
+
+        <input type="text" id="search-layanan" placeholder="Cari nama layanan..." 
+                class="border p-2 w-full mb-4 rounded focus:ring-2 focus:ring-blue-500 outline-none" 
+                value="${currentSearchLayanan}"/>
+        
+        <div id="layananTableContainer" class="bg-white shadow rounded-lg overflow-x-auto border border-gray-200">
           ${renderLayananTable(rows, isAdmin)}
         </div>
+
+        <div class="flex justify-between items-center mt-6 bg-white p-4 rounded-lg border shadow-sm">
+          <button onclick="prevPageLayanan()" class="px-4 py-2 border rounded shadow-sm text-sm font-bold hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed" 
+            ${layananPage === 1 ? 'disabled' : ''}>Previous</button>
+          
+          <div class="text-sm font-medium text-gray-500">
+            Halaman <span class="text-blue-600 font-bold">${layananPage}</span>
+          </div>
+
+          <button onclick="nextPageLayanan()" class="px-4 py-2 border rounded shadow-sm text-sm font-bold hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            ${rows.length < layananLimit ? 'disabled' : ''}>Next</button>
+        </div>
       `;
+
+      const searchInput = document.getElementById("search-layanan");
+
+      searchInput.focus();
+      searchInput.setSelectionRange(searchInput.value.length, searchInput.value.length);
+
+      searchInput.addEventListener("input", (e) => {
+        clearTimeout(searchLayananTimeout);
+        searchLayananTimeout = setTimeout(() => {
+          layananPage = 1;
+          loadLayanan(e.target.value);
+        }, 500);
+      });
 
       if (isAdmin) {
         document.getElementById("btn-tambah").addEventListener("click", () => {
@@ -606,20 +653,34 @@ function loadLayanan() {
           `, () => {
             const body = {
               nama: document.getElementById("nama").value,
-              harga: document.getElementById("harga").value,
+              harga: parseInt(document.getElementById("harga").value),
               satuan: document.getElementById("satuan").value
             };
             fetch(`${API}/layanan`, {
               method: "POST",
               headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
               body: JSON.stringify(body)
-            }).then(() => { closeModal(); loadLayanan(); });
+            }).then(() => {
+              closeModal();
+              loadLayanan(currentSearchLayanan);
+            });
           });
         });
       }
-
       attachLayananEvents();
     });
+}
+
+function nextPageLayanan() {
+  layananPage++;
+  loadLayanan(currentSearchLayanan);
+}
+
+function prevPageLayanan() {
+  if (layananPage > 1) {
+    layananPage--;
+    loadLayanan(currentSearchLayanan);
+  }
 }
 
 function renderLayananTable(data, isAdmin) {
