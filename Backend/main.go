@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"net/url"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -413,19 +413,46 @@ func transaksiHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	query := r.URL.Query()
+	page, _ := strconv.Atoi(query.Get("page"))
+	limit, _ := strconv.Atoi(query.Get("limit"))
+	searchTerm := query.Get("search")
+
+	bodyBytes, _ := io.ReadAll(r.Body)
+	r.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+
 	fullURL := BaseURL + "/rest/v1/transaksi"
-	if r.URL.RawQuery != "" {
-		fullURL += "?" + r.URL.RawQuery
+	params := url.Values{}
+	params.Add("select", "*")
+	params.Add("order", "created_at.desc")
+
+	if r.Method == http.MethodGet && searchTerm != "" {
+		params.Add("kode", "ilike.*"+searchTerm+"*")
 	}
 
-	buf := new(bytes.Buffer)
-	buf.ReadFrom(r.Body)
+	query.Del("page")
+	query.Del("limit")
+	query.Del("search")
+	query.Del("order")
+	for k, v := range query {
+		params.Add(k, v[0])
+	}
+	fullURL += "?" + params.Encode()
 
 	client := &http.Client{}
-	reqSup, _ := http.NewRequest(r.Method, fullURL, buf)
+	reqSup, _ := http.NewRequest(r.Method, fullURL, bytes.NewBuffer(bodyBytes))
 	reqSup.Header.Set("Content-Type", "application/json")
 	reqSup.Header.Set("apikey", APIKey)
 	reqSup.Header.Set("Authorization", "Bearer "+APIKey)
+
+	if r.Method == http.MethodGet && page > 0 {
+		if limit < 1 {
+			limit = 10
+		}
+		from := (page - 1) * limit
+		to := from + limit - 1
+		reqSup.Header.Set("Range", fmt.Sprintf("%d-%d", from, to))
+	}
 
 	resSup, err := client.Do(reqSup)
 	if err != nil {
@@ -434,9 +461,10 @@ func transaksiHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer resSup.Body.Close()
 
-	bodyBytes, _ := io.ReadAll(resSup.Body)
+	resBody, _ := io.ReadAll(resSup.Body)
 	w.Header().Set("Content-Type", "application/json")
-	w.Write(bodyBytes)
+	w.WriteHeader(resSup.StatusCode)
+	w.Write(resBody)
 }
 
 func layananHandler(w http.ResponseWriter, r *http.Request) {
@@ -509,6 +537,7 @@ func layananHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(resSup.StatusCode)
 	w.Write(resBody)
 }
+
 type Transaksi struct {
 	Kode             string     `json:"kode"`
 	CreatedAt        time.Time  `json:"created_at"`

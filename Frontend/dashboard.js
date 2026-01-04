@@ -14,7 +14,6 @@ let posState = {
 
 let pelangganPage = 1;
 const pelangganLimit = 6;
-
 let searchTimeout;
 let currentSearch = "";
 
@@ -23,6 +22,11 @@ let layananPage = 1;
 const layananLimit = 6;
 let currentSearchLayanan = "";
 let searchLayananTimeout;
+
+let transaksiPage = 1;
+const transaksiLimit = 6;
+let currentSearchTransaksi = "";
+let searchTransaksiTimeout;
 
 document.addEventListener("DOMContentLoaded", () => {
   const page = localStorage.getItem("currentPage") || "dashboard";
@@ -126,7 +130,6 @@ const rupiah = (number) => {
   }).format(number);
 };
 
-// ... existing modal/print functions ...
 function openModal(title, formHTML, onSave) {
   document.getElementById("modal-title").innerText = title;
   document.getElementById("modal-form").innerHTML = formHTML;
@@ -186,7 +189,6 @@ function printStruk(transaksi, namaPelanggan, namaLayanan) {
   window.print();
 }
 
-// POS LOGIC
 let allServices = [];
 
 async function loadPOS() {
@@ -255,7 +257,6 @@ function selectPOSService(service) {
   renderPOSCart();
 }
 
-// Make selectPOSService global for HTML onclick
 window.selectPOSService = selectPOSService;
 window.updateQty = (delta) => {
   let newQty = posState.qty + delta;
@@ -360,7 +361,6 @@ async function checkoutPOS() {
     alert("Error: " + e.message);
   }
 }
-
 
 async function loadDashboard() {
   const content = document.getElementById("content");
@@ -725,12 +725,18 @@ function attachLayananEvents() {
   });
 }
 
-function loadTransaksi() {
+function loadTransaksi(searchKeyword = "") {
+  currentSearchTransaksi = searchKeyword;
+
+  // 1. Ambil data pendukung & data transaksi sekaligus
   Promise.all([
     fetch(`${API}/pelanggan`, { headers: { Authorization: "Bearer " + token } }).then(r => r.json()),
     fetch(`${API}/layanan`, { headers: { Authorization: "Bearer " + token } }).then(r => r.json()),
-    fetch(`${API}/transaksi`, { headers: { Authorization: "Bearer " + token } }).then(r => r.json())
+    fetch(`${API}/transaksi?page=${transaksiPage}&limit=${transaksiLimit}&search=${encodeURIComponent(currentSearchTransaksi)}`, {
+      headers: { Authorization: "Bearer " + token }
+    }).then(r => r.json())
   ]).then(([pelangganData, layananData, transaksiData]) => {
+
     const pelanggan = Array.isArray(pelangganData) ? pelangganData : pelangganData.data || [];
     const layanan = Array.isArray(layananData) ? layananData : layananData.data || [];
     const transaksi = Array.isArray(transaksiData) ? transaksiData : transaksiData.data || [];
@@ -745,14 +751,14 @@ function loadTransaksi() {
       <h2 class="text-xl font-bold mb-4">Data Transaksi</h2>
       <button id="btn-tambah" class="bg-blue-600 text-white px-4 py-2 rounded mb-4 shadow hover:bg-blue-700">Tambah Transaksi</button>
       
+      <input type="text" id="search-transaksi" placeholder="Cari kode transaksi..." class="border p-2 w-full mb-4 rounded" value="${currentSearchTransaksi}"/>
+
       <div class="bg-white shadow rounded overflow-x-auto border border-gray-200">
-        
         <table class="min-w-max md:min-w-full divide-y divide-gray-200">
           <thead class="bg-gray-50">
             <tr>
               <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase whitespace-nowrap">Kode</th>
               <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase whitespace-nowrap">Pelanggan</th>
-              <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase whitespace-nowrap">Metode Pembayaran</th>
               <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase whitespace-nowrap">Total</th>
               <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase whitespace-nowrap">Status</th>
               <th class="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase whitespace-nowrap">Aksi</th>
@@ -761,50 +767,67 @@ function loadTransaksi() {
           <tbody class="bg-white divide-y divide-gray-200">
             ${transaksi.map(t => `
               <tr class="hover:bg-gray-50 transition">
-                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${t.kode || '-'}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">${pelangganMap[t.pelanggan_id] || '-'}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">${t.metode_pembayaran || '-'}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-bold">${rupiah(t.total)}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm">
+                <td class="px-6 py-4 text-sm font-medium text-gray-900">${t.kode || '-'}</td>
+                <td class="px-6 py-4 text-sm text-gray-600">${pelangganMap[t.pelanggan_id] || '-'}</td>
+                <td class="px-6 py-4 text-sm font-bold text-gray-900">${rupiah(t.total)}</td>
+                <td class="px-6 py-4 text-sm">
                   <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${t.status === 'selesai' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}">
                     ${t.status}
                   </span>
                 </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-center space-x-1">
-                   <button class="bg-gray-700 text-white px-2 py-1 rounded text-xs hover:bg-gray-800 btn-print" data-id="${t.id}">Cetak</button>
-                   ${t.status !== 'selesai' ? `<button class="bg-green-600 text-white px-2 py-1 rounded text-xs hover:bg-green-700 btn-selesai" data-id="${t.id}">Selesai</button>` : ''}
-                   <button class="bg-red-600 text-white px-2 py-1 rounded text-xs hover:bg-red-700 btn-delete" data-id="${t.id}">Hapus</button>
+                <td class="px-6 py-4 text-sm text-center space-x-1">
+                   <button class="bg-gray-700 text-white px-2 py-1 rounded text-xs btn-print" data-id="${t.id}">Cetak</button>
+                   ${t.status !== 'selesai' ? `<button class="bg-green-600 text-white px-2 py-1 rounded text-xs btn-selesai" data-id="${t.id}">Selesai</button>` : ''}
+                   <button class="bg-red-600 text-white px-2 py-1 rounded text-xs btn-delete" data-id="${t.id}">Hapus</button>
                 </td>
               </tr>
             `).join('')}
           </tbody>
         </table>
       </div>
+
+      <div class="flex justify-between items-center mt-4 p-4 bg-gray-50 rounded-lg border fixexd bottom-0 shadow-md">
+        <button onclick="prevPageTransaksi()" class="bg-white border px-4 py-2 rounded shadow-sm hover:bg-gray-100 disabled:opacity-50" ${transaksiPage === 1 ? 'disabled' : ''}>Previous</button>
+        <span class="font-bold text-sm">Halaman ${transaksiPage}</span>
+        <button onclick="nextPageTransaksi()" class="bg-white border px-4 py-2 rounded shadow-sm hover:bg-gray-100 disabled:opacity-50" ${transaksi.length < transaksiLimit ? 'disabled' : ''}>Next</button>
+      </div>
     `;
 
-    document.getElementById("btn-tambah").addEventListener("click", () => {
+    // RE-BIND SEARCH
+    const searchInput = document.getElementById("search-transaksi");
+    searchInput.focus();
+    searchInput.setSelectionRange(searchInput.value.length, searchInput.value.length);
+    searchInput.addEventListener("input", (e) => {
+      clearTimeout(searchTransaksiTimeout);
+      searchTransaksiTimeout = setTimeout(() => {
+        transaksiPage = 1;
+        loadTransaksi(e.target.value);
+      }, 500);
+    });
+
+    // Tombol Tambah
+    document.getElementById("btn-tambah").onclick = () => {
       openModal("Tambah Transaksi", `
-        <label class="block text-sm mb-1">Pelanggan</label>
-        <select id="pelanggan" class="border p-2 w-full mb-2 rounded">
-          ${pelanggan.map(p => `<option value="${p.id}">${p.nama}</option>`).join('')}
-        </select>
-        <label class="block text-sm mb-1">Layanan</label>
-        <select id="layanan" class="border p-2 w-full mb-2 rounded">
-          ${layanan.map(l => `<option value="${l.id}">${l.nama} - ${rupiah(l.harga)}</option>`).join('')}
-        </select>
-        <label class="block text-sm mb-1">Berat / Jumlah</label>
-        <input type="number" id="berat" class="border p-2 w-full mb-2 rounded" placeholder="Contoh: 3" required>
-        <label class="block text-sm mb-1">Metode Pembayaran</label>
-        <select id="metode_pembayaran" class="border p-2 w-full mb-2 rounded">
-          <option value="Cash">Cash</option>
-          <option value="QRIS">QRIS</option>
-        </select>
-        <label class="block text-sm mb-1">Kode Transaksi</label>
-        <input type="text" id="kode" class="border p-2 w-full mb-2 rounded" value="TRX-${Math.floor(Math.random() * 10000)}" readonly>
-      `, async () => {
+            <label class="block text-sm mb-1">Pelanggan</label>
+            <select id="pelanggan" class="border p-2 w-full mb-2 rounded">
+              ${pelanggan.map(p => `<option value="${p.id}">${p.nama}</option>`).join('')}
+            </select>
+            <label class="block text-sm mb-1">Layanan</label>
+            <select id="layanan" class="border p-2 w-full mb-2 rounded">
+              ${layanan.map(l => `<option value="${l.id}">${l.nama} - ${rupiah(l.harga)}</option>`).join('')}
+            </select>
+            <label class="block text-sm mb-1">Berat / Jumlah</label>
+            <input type="number" id="berat" class="border p-2 w-full mb-2 rounded" placeholder="Contoh: 3" required>
+            <label class="block text-sm mb-1">Metode Pembayaran</label>
+            <select id="metode_pembayaran" class="border p-2 w-full mb-2 rounded">
+              <option value="Cash">Cash</option>
+              <option value="QRIS">QRIS</option>
+            </select>
+            <label class="block text-sm mb-1">Kode Transaksi</label>
+            <input type="text" id="kode" class="border p-2 w-full mb-2 rounded" value="TRX-${Math.floor(Math.random() * 10000)}" readonly>
+        `, () => {
         const layId = document.getElementById("layanan").value;
         const berat = parseFloat(document.getElementById("berat").value) || 1;
-
         const selectedLayanan = layanan.find(l => l.id == layId);
         const total = berat * (selectedLayanan ? selectedLayanan.harga : 0);
 
@@ -822,53 +845,45 @@ function loadTransaksi() {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
           body: JSON.stringify(body)
-        }).then(() => { closeModal(); loadTransaksi(); });
+        }).then(() => { closeModal(); loadTransaksi(currentSearchTransaksi); });
       });
 
-      // Fix TomSelect
-      setTimeout(() => {
-        if (window.TomSelect) {
-          new TomSelect("#pelanggan");
-          new TomSelect("#layanan");
-        }
-      }, 100);
-    });
+      if (window.TomSelect) {
+        new TomSelect("#pelanggan");
+        new TomSelect("#layanan");
+      }
+    };
 
-    // Event Delete
+    // Event Selesai, Delete, Print (Sama seperti kodemu)
     document.querySelectorAll(".btn-delete").forEach(btn => {
       btn.onclick = () => {
-        if (!confirm("Hapus transaksi ini?")) return;
-        fetch(`${API}/transaksi?id=eq.${btn.dataset.id}`, {
-          method: "DELETE",
-          headers: { Authorization: "Bearer " + token }
-        }).then(() => loadTransaksi());
-      };
+        if (!confirm("Hapus?")) return;
+        fetch(`${API}/transaksi?id=eq.${btn.dataset.id}`, { method: "DELETE", headers: { Authorization: "Bearer " + token } }).then(() => loadTransaksi(currentSearchTransaksi));
+      }
     });
 
-    // Event Selesai
     document.querySelectorAll(".btn-selesai").forEach(btn => {
       btn.onclick = () => {
-        if (!confirm("Tandai transaksi selesai?")) return;
         fetch(`${API}/transaksi?id=eq.${btn.dataset.id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
           body: JSON.stringify({ status: "selesai" })
-        }).then(() => loadTransaksi());
-      };
+        }).then(() => loadTransaksi(currentSearchTransaksi));
+      }
     });
 
-    // Event Cetak Struk (BARU)
     document.querySelectorAll(".btn-print").forEach(btn => {
       btn.onclick = () => {
         const t = transaksi.find(item => item.id == btn.dataset.id);
-        const pName = pelangganMap[t.pelanggan_id] || "Umum";
-        const lName = layananMap[t.layanan_id] || "Jasa Laundry";
-        printStruk(t, pName, lName);
-      };
+        printStruk(t, pelangganMap[t.pelanggan_id], layananMap[t.layanan_id]);
+      }
     });
 
   });
 }
+
+function nextPageTransaksi() { transaksiPage++; loadTransaksi(currentSearchTransaksi); }
+function prevPageTransaksi() { if (transaksiPage > 1) { transaksiPage--; loadTransaksi(currentSearchTransaksi); } }
 
 function loadLaporan() {
   const content = document.getElementById("content");
