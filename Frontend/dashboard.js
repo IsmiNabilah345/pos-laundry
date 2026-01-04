@@ -924,3 +924,125 @@ function loadLaporan() {
       content.innerHTML = `<p class="text-red-500">Gagal memuat laporan: ${err.message}</p>`;
     });
 }
+
+document.addEventListener("DOMContentLoaded", () => {
+  const role = localStorage.getItem("role");
+  if (role === "admin") {
+    document.getElementById("menu-laporan").classList.remove("hidden");
+    document.getElementById("menu-user").classList.remove("hidden");
+  }
+
+  document.getElementById("menu-user").addEventListener("click", loadUserManagement);
+});
+
+async function loadUserManagement() {
+  const content = document.getElementById("content");
+  content.innerHTML = `
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="text-2xl font-bold text-gray-800">Manajemen Kasir</h2>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div class="bg-gray-50 p-6 rounded-lg border border-gray-200 shadow-sm">
+                <h3 class="font-bold text-indigo-700 mb-4">Tambah Kasir Baru</h3>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1">NAMA LENGKAP</label>
+                        <input type="text" id="reg-nama" class="w-full p-2 border rounded focus:ring-2 focus:ring-indigo-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1">USERNAME</label>
+                        <input type="text" id="reg-user" class="w-full p-2 border rounded focus:ring-2 focus:ring-indigo-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1">PASSWORD</label>
+                        <input type="password" id="reg-pass" class="w-full p-2 border rounded focus:ring-2 focus:ring-indigo-500 outline-none">
+                    </div>
+                    <button onclick="prosesSimpanKasir()" class="w-full bg-indigo-600 text-white py-2 rounded font-bold hover:bg-indigo-700 transition shadow">
+                        Daftarkan Kasir
+                    </button>
+                </div>
+            </div>
+
+            <div class="lg:col-span-2 bg-white rounded-lg border shadow-sm overflow-hidden">
+                <table class="w-full text-left">
+                    <thead class="bg-gray-100 border-b">
+                        <tr>
+                            <th class="p-4 text-sm font-bold text-gray-600">Nama</th>
+                            <th class="p-4 text-sm font-bold text-gray-600">Username</th>
+                            <th class="p-4 text-sm font-bold text-gray-600">Role</th>
+                            <th class="p-4 text-sm font-bold text-gray-600">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody id="user-list-body">
+                        <tr><td colspan="4" class="p-4 text-center text-gray-400">Memuat data...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    `;
+  fetchUserList();
+}
+
+async function fetchUserList() {
+  try {
+    const res = await fetch(`${API}/users`, {
+      headers: { "Authorization": "Bearer " + localStorage.getItem("token") }
+    });
+
+    const data = await res.json();
+    console.log("Data dari backend:", data); // LIHAT DI CONSOLE F12
+
+    const tbody = document.getElementById("user-list-body");
+    tbody.innerHTML = "";
+
+    // CEK: Apakah data benar-benar Array?
+    if (!Array.isArray(data)) {
+      tbody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-red-500">Gagal memuat: ${data.error || 'Format data salah'}</td></tr>`;
+      return;
+    }
+
+    data.forEach(u => {
+      tbody.innerHTML += `
+                <tr class="border-b hover:bg-gray-50">
+                    <td class="p-4">${u.nama || '-'}</td>
+                    <td class="p-4 font-mono text-sm">${u.username}</td>
+                    <td class="p-4">
+                        <span class="px-2 py-1 rounded-full text-xs font-bold ${u.role === 'admin' ? 'bg-purple-100 text-purple-700' : 'bg-green-100 text-green-700'}">
+                            ${u.role.toUpperCase()}
+                        </span>
+                    </td>
+                    <td class="p-4">
+                        ${u.role !== 'admin' ? `<button onclick="hapusUser('${u.id}')" class="text-red-500 hover:text-red-700 text-sm font-bold">Hapus</button>` : '-'}
+                    </td>
+                </tr>
+            `;
+    });
+  } catch (err) {
+    console.error("Fetch error:", err);
+  }
+}
+
+async function prosesSimpanKasir() {
+  const nama = document.getElementById("reg-nama").value;
+  const username = document.getElementById("reg-user").value;
+  const password = document.getElementById("reg-pass").value;
+
+  if (!nama || !username || !password) return alert("Harap isi semua kolom!");
+
+  const res = await fetch(`${API}/register`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": "Bearer " + localStorage.getItem("token")
+    },
+    body: JSON.stringify({ nama, username, password })
+  });
+
+  if (res.ok) {
+    alert("Kasir berhasil didaftarkan!");
+    loadUserManagement();
+  } else {
+    alert("Gagal mendaftarkan user. Pastikan username belum dipakai.");
+  }
+}

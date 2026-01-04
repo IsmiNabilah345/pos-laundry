@@ -45,7 +45,6 @@ func corsMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
-// Helper: Validasi JWT
 func validateToken(r *http.Request) (jwt.MapClaims, error) {
 	authHeader := r.Header.Get("Authorization")
 	if authHeader == "" {
@@ -149,6 +148,104 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 		"access_token": tokenString,
 		"role":         user.Role,
 	})
+}
+
+func registerHandler(w http.ResponseWriter, r *http.Request) {
+
+	claims, err := validateToken(r)
+	if err != nil {
+		fmt.Println("Gagal Verifikasi Karena:", err)
+
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		return
+	}
+
+	if claims["role"] != "admin" {
+		w.WriteHeader(http.StatusForbidden)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Hanya admin yang bisa menambah kasir"})
+		return
+	}
+
+	var input struct {
+		Username string `json:"username"`
+		Password string `json:"password"`
+		Nama     string `json:"nama"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	hashed, err := HashPassword(input.Password)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	userData := map[string]any{
+		"username": input.Username,
+		"password": hashed,
+		"nama":     input.Nama,
+		"role":     "kasir",
+	}
+
+	body, _ := json.Marshal(userData)
+
+	client := &http.Client{}
+	url := BaseURL + "/rest/v1/users"
+	reqSup, _ := http.NewRequest("POST", url, bytes.NewBuffer(body))
+	reqSup.Header.Set("apikey", APIKey)
+	reqSup.Header.Set("Authorization", "Bearer "+APIKey)
+	reqSup.Header.Set("Content-Type", "application/json")
+
+	resSup, err := client.Do(reqSup)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	defer resSup.Body.Close()
+
+	if resSup.StatusCode >= 400 {
+		w.WriteHeader(resSup.StatusCode)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(map[string]string{"message": "Kasir berhasil didaftarkan"})
+}
+
+func getUsersHandler(w http.ResponseWriter, r *http.Request) {
+	claims, err := validateToken(r)
+	if err != nil || claims["role"] != "admin" {
+		w.WriteHeader(http.StatusForbidden)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Forbidden"})
+		return
+	}
+
+	client := &http.Client{}
+	// Coba ganti select=* dulu buat ngetes kalau kolom tertentu yang bikin error
+	url := BaseURL + "/rest/v1/users?select=*"
+
+	reqSup, _ := http.NewRequest("GET", url, nil)
+	reqSup.Header.Set("apikey", APIKey)
+	reqSup.Header.Set("Authorization", "Bearer "+APIKey)
+
+	resSup, err := client.Do(reqSup)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	defer resSup.Body.Close()
+
+	body, _ := io.ReadAll(resSup.Body)
+
+	// Kirim status code yang asli dari Supabase biar keliatan di browser
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(resSup.StatusCode)
+	w.Write(body)
 }
 
 func HashPassword(password string) (string, error) {
@@ -469,7 +566,6 @@ func laporanExportHandler(w http.ResponseWriter, r *http.Request) {
 
 	var start, end time.Time
 
-	// 1. Logika Range Waktu
 	switch periode {
 	case "harian":
 		start = time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, loc)
@@ -486,14 +582,12 @@ func laporanExportHandler(w http.ResponseWriter, r *http.Request) {
 		end = time.Date(now.Year(), now.Month(), now.Day(), 23, 59, 59, 0, loc)
 	}
 
-	// 2. Filter menggunakan nama kolom baru: selesai_tanggal_wib
-	filter := fmt.Sprintf("selesai_tanggal_wib=gte.%s&selesai_tanggal_wib=lt.%s",
-		start.Format(time.RFC3339),
-		end.Format(time.RFC3339))
+	filter := fmt.Sprintf("selesai_tanggal_wib=gte.%s&selesai_tanggal_wib=lte.%s",
+		start.Format("2006-01-02"),
+		end.Format("2006-01-02"))
 
 	var transaksiURL string
 	if tipe == "riwayat" {
-		// Tambahkan selesai_tanggal_wib di select
 		transaksiURL = BaseURL + "/rest/v1/transaksi_wib?status=eq.selesai&select=kode,selesai_tanggal_wib,berat,total,metode_pembayaran,status,pelanggan(nama),layanan(nama)"
 	} else {
 		transaksiURL = BaseURL + "/rest/v1/transaksi_wib?status=eq.selesai&select=selesai_tanggal_wib,total"
@@ -532,9 +626,10 @@ func laporanExportHandler(w http.ResponseWriter, r *http.Request) {
 			t.LayananNama = fmt.Sprint(l["nama"])
 		}
 
-		// MAPPING: Ambil dari key selesai_tanggal_wib
 		if s, ok := item["selesai_tanggal_wib"].(string); ok && s != "" {
 			if tm, err := time.Parse(time.RFC3339, s); err == nil {
+				t.SelesaiAt = &tm
+			} else if tm, err := time.Parse("2006-01-02", s); err == nil {
 				t.SelesaiAt = &tm
 			}
 		}
@@ -584,7 +679,7 @@ func laporanExportHandler(w http.ResponseWriter, r *http.Request) {
 			row := strconv.Itoa(i + 2)
 			f.SetCellValue(sheet, "A"+row, t.Kode)
 			if t.SelesaiAt != nil {
-				f.SetCellValue(sheet, "B"+row, t.SelesaiAt.In(loc).Format("02-01-2006 15:04"))
+				f.SetCellValue(sheet, "B"+row, t.SelesaiAt.In(loc).Format("02-01-2006"))
 			}
 			f.SetCellValue(sheet, "C"+row, t.PelangganNama)
 			f.SetCellValue(sheet, "D"+row, t.LayananNama)
@@ -632,6 +727,8 @@ func laporanExportHandler(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 	http.HandleFunc("/login", corsMiddleware(loginHandler))
+	http.HandleFunc("/register", corsMiddleware(registerHandler))
+	http.HandleFunc("/users", corsMiddleware(getUsersHandler))
 	http.HandleFunc("/dashboard", corsMiddleware(dashboardHandler))
 	http.HandleFunc("/pelanggan", corsMiddleware(pelangganHandler))
 	http.HandleFunc("/transaksi", corsMiddleware(transaksiHandler))
@@ -639,6 +736,6 @@ func main() {
 	http.HandleFunc("/laporan", corsMiddleware(laporanHandler))
 	http.HandleFunc("/laporan/export", corsMiddleware(laporanExportHandler))
 
-	fmt.Println("Server jalan di http://localhost:8080")
+	fmt.Println("Server WellClean Laundry jalan di: http://localhost:8080")
 	http.ListenAndServe(":8080", nil)
 }
