@@ -248,6 +248,50 @@ func getUsersHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write(body)
 }
 
+func deleteUserHandler(w http.ResponseWriter, r *http.Request) {
+	claims, err := validateToken(r)
+	if err != nil || claims["role"] != "admin" {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	id := r.URL.Query().Get("id")
+	if id == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	client := &http.Client{}
+	reqSup, _ := http.NewRequest("DELETE", BaseURL+"/rest/v1/users?id=eq."+id, nil)
+	reqSup.Header.Set("apikey", APIKey)
+	reqSup.Header.Set("Authorization", "Bearer "+APIKey)
+
+	resSup, _ := client.Do(reqSup)
+	w.WriteHeader(resSup.StatusCode)
+}
+
+func updateUserHandler(w http.ResponseWriter, r *http.Request) {
+	claims, err := validateToken(r)
+	if err != nil || claims["role"] != "admin" {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	id := r.URL.Query().Get("id")
+	var input map[string]interface{}
+	json.NewDecoder(r.Body).Decode(&input)
+
+	body, _ := json.Marshal(input)
+	client := &http.Client{}
+	reqSup, _ := http.NewRequest("PATCH", BaseURL+"/rest/v1/users?id=eq."+id, bytes.NewBuffer(body))
+	reqSup.Header.Set("apikey", APIKey)
+	reqSup.Header.Set("Authorization", "Bearer "+APIKey)
+	reqSup.Header.Set("Content-Type", "application/json")
+
+	resSup, _ := client.Do(reqSup)
+	w.WriteHeader(resSup.StatusCode)
+}
+
 func HashPassword(password string) (string, error) {
 	bytes, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	return string(bytes), err
@@ -729,6 +773,8 @@ func main() {
 	http.HandleFunc("/login", corsMiddleware(loginHandler))
 	http.HandleFunc("/register", corsMiddleware(registerHandler))
 	http.HandleFunc("/users", corsMiddleware(getUsersHandler))
+	http.HandleFunc("/users/delete", corsMiddleware(deleteUserHandler))
+	http.HandleFunc("/users/update", corsMiddleware(updateUserHandler))
 	http.HandleFunc("/dashboard", corsMiddleware(dashboardHandler))
 	http.HandleFunc("/pelanggan", corsMiddleware(pelangganHandler))
 	http.HandleFunc("/transaksi", corsMiddleware(transaksiHandler))

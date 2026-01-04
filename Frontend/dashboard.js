@@ -991,12 +991,11 @@ async function fetchUserList() {
     });
 
     const data = await res.json();
-    console.log("Data dari backend:", data); // LIHAT DI CONSOLE F12
+    console.log("Data dari backend:", data); 
 
     const tbody = document.getElementById("user-list-body");
     tbody.innerHTML = "";
 
-    // CEK: Apakah data benar-benar Array?
     if (!Array.isArray(data)) {
       tbody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-red-500">Gagal memuat: ${data.error || 'Format data salah'}</td></tr>`;
       return;
@@ -1004,19 +1003,16 @@ async function fetchUserList() {
 
     data.forEach(u => {
       tbody.innerHTML += `
-                <tr class="border-b hover:bg-gray-50">
-                    <td class="p-4">${u.nama || '-'}</td>
-                    <td class="p-4 font-mono text-sm">${u.username}</td>
-                    <td class="p-4">
-                        <span class="px-2 py-1 rounded-full text-xs font-bold ${u.role === 'admin' ? 'bg-purple-100 text-purple-700' : 'bg-green-100 text-green-700'}">
-                            ${u.role.toUpperCase()}
-                        </span>
-                    </td>
-                    <td class="p-4">
-                        ${u.role !== 'admin' ? `<button onclick="hapusUser('${u.id}')" class="text-red-500 hover:text-red-700 text-sm font-bold">Hapus</button>` : '-'}
-                    </td>
-                </tr>
-            `;
+        <tr>
+            <td class="p-4">${u.nama || '-'}</td>
+            <td class="p-4">${u.username}</td>
+            <td class="p-4">${u.role}</td>
+            <td class="p-4">
+                <button onclick="editUser('${u.id}', '${u.nama}', '${u.role}')" class="text-blue-500 mr-2">Edit</button>
+                ${u.role !== 'admin' ? `<button onclick="hapusUser('${u.id}')" class="text-red-500">Hapus</button>` : ''}
+            </td>
+        </tr>
+    `;
     });
   } catch (err) {
     console.error("Fetch error:", err);
@@ -1044,5 +1040,38 @@ async function prosesSimpanKasir() {
     loadUserManagement();
   } else {
     alert("Gagal mendaftarkan user. Pastikan username belum dipakai.");
+  }
+}
+
+async function hapusUser(id) {
+  if (!confirm("Yakin ingin menghapus user ini?")) return;
+  const res = await fetch(`${API}/users/delete?id=${id}`, {
+    method: "DELETE",
+    headers: { "Authorization": "Bearer " + localStorage.getItem("token") }
+  });
+  if (res.ok) {
+    alert("User dihapus!");
+    loadUserManagement();
+  }
+}
+
+async function editUser(id, namaLama, roleLama) {
+  const nama = prompt("Nama Baru:", namaLama);
+  const role = prompt("Role Baru (admin/kasir):", roleLama);
+
+  if (!nama || !role) return;
+
+  const res = await fetch(`${API}/users/update?id=${id}`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": "Bearer " + localStorage.getItem("token")
+    },
+    body: JSON.stringify({ nama, role })
+  });
+
+  if (res.ok) {
+    alert("User diupdate!");
+    loadUserManagement();
   }
 }
