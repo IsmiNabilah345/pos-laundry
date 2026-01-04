@@ -12,6 +12,12 @@ let posState = {
   tomSelectInstance: null
 };
 
+let pelangganPage = 1;
+const pelangganLimit = 6;
+
+let searchTimeout;
+let currentSearch = "";
+
 document.addEventListener("DOMContentLoaded", () => {
   const page = localStorage.getItem("currentPage") || "dashboard";
   if (page === "transaksi") loadTransaksi();
@@ -350,7 +356,6 @@ async function checkoutPOS() {
 }
 
 
-// --- EXISTING LOAD FUNCTIONS ---
 async function loadDashboard() {
   const content = document.getElementById("content");
   content.innerHTML = '<p class="text-gray-500">Memuat statistik...</p>';
@@ -423,8 +428,15 @@ async function loadDashboard() {
   }
 }
 
-function loadPelanggan() {
-  fetch(`${API}/pelanggan`, {
+function loadPelanggan(searchKeyword = "") {
+  currentSearch = searchKeyword;
+
+  let url = `${API}/pelanggan?page=${pelangganPage}&limit=${pelangganLimit}`;
+  if (currentSearch) {
+    url += `&search=${encodeURIComponent(currentSearch)}`;
+  }
+
+  fetch(url, {
     headers: { Authorization: "Bearer " + token }
   })
     .then(res => res.json())
@@ -435,22 +447,49 @@ function loadPelanggan() {
       content.innerHTML = `
         <h2 class="text-xl font-bold mb-4">Data Pelanggan</h2>
         <button id="btn-tambah" class="bg-blue-600 text-white px-4 py-2 rounded mb-4 shadow hover:bg-blue-700">Tambah Pelanggan</button>
-        <input type="text" id="search" placeholder="Cari pelanggan..." class="border p-2 w-full mb-4 rounded"/>
+        
+        <input type="text" id="search" placeholder="Cari di semua data..." 
+          class="border p-2 w-full mb-4 rounded focus:ring-2 focus:ring-blue-500 outline-none" 
+          value="${currentSearch}"/>
+        
         <div id="tableContainer" class="bg-white shadow rounded-lg overflow-x-auto border border-gray-200">
           ${renderPelangganTable(rows)}
         </div>
+
+        <div class="flex justify-between items-center mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+          <button onclick="prevPagePelanggan()" class="bg-white border px-4 py-2 rounded shadow-sm hover:bg-gray-100 disabled:opacity-50 font-bold text-gray-600" 
+            ${pelangganPage === 1 ? 'disabled' : ''}>
+            Previous
+          </button>
+          
+          <div class="text-center">
+            <span class="font-bold text-sm text-gray-600">Halaman</span>
+            <span>${pelangganPage}</span>
+          </div>
+
+          <button onclick="nextPagePelanggan()" class="bg-white border px-4 py-2 rounded shadow-sm hover:bg-gray-100 disabled:opacity-50 font-bold text-gray-600"
+            ${rows.length < pelangganLimit ? 'disabled' : ''}>
+            Next
+          </button>
+        </div>
       `;
 
-      document.getElementById("search").addEventListener("input", (e) => {
-        const key = e.target.value.toLowerCase();
-        const filtered = rows.filter(p =>
-          p.nama.toLowerCase().includes(key) ||
-          (p.telepon || "").toLowerCase().includes(key)
-        );
-        document.getElementById("tableContainer").innerHTML = renderPelangganTable(filtered);
-        attachPelangganEvents(filtered);
+      const searchInput = document.getElementById("search");
+
+      searchInput.focus();
+      searchInput.setSelectionRange(searchInput.value.length, searchInput.value.length);
+
+      searchInput.addEventListener("input", (e) => {
+        const key = e.target.value;
+
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
+          pelangganPage = 1;
+          loadPelanggan(key);
+        }, 500);
       });
 
+      // --- TOMBOL TAMBAH ---
       document.getElementById("btn-tambah").addEventListener("click", () => {
         openModal("Tambah Pelanggan", `
           <input type="text" id="nama" placeholder="Nama" class="border p-2 w-full mb-2 rounded" required>
@@ -462,30 +501,13 @@ function loadPelanggan() {
             telepon: document.getElementById("telepon").value,
             alamat: document.getElementById("alamat").value
           };
-
-          const saveBtn = document.getElementById("modal-save");
-          saveBtn.disabled = true;
-          saveBtn.innerText = "Menyimpan...";
-
           fetch(`${API}/pelanggan`, {
             method: "POST",
             headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
             body: JSON.stringify(body)
-          }).then(async (res) => {
-            if (!res.ok) {
-              const err = await res.json();
-              alert("Gagal menambah pelanggan: " + (err.error || err.message || JSON.stringify(err)));
-            } else {
-              closeModal();
-              loadPelanggan();
-            }
-          }).catch(err => alert("Error: " + err.message))
-            .finally(() => {
-              if (document.getElementById("modal-save")) {
-                document.getElementById("modal-save").disabled = false;
-                document.getElementById("modal-save").innerText = "Simpan";
-              }
-            });
+          }).then(res => {
+            if (res.ok) { closeModal(); loadPelanggan(currentSearch); }
+          });
         });
       });
 
@@ -699,7 +721,6 @@ function loadTransaksi() {
       </div>
     `;
 
-    // Event Tambah Transaksi
     document.getElementById("btn-tambah").addEventListener("click", () => {
       openModal("Tambah Transaksi", `
         <label class="block text-sm mb-1">Pelanggan</label>
@@ -1074,5 +1095,17 @@ async function editUser(id, namaLama, roleLama) {
   if (res.ok) {
     alert("User diupdate!");
     loadUserManagement();
+  }
+}
+
+function nextPagePelanggan() {
+  pelangganPage++;
+  loadPelanggan();
+}
+
+function prevPagePelanggan() {
+  if (pelangganPage > 1) {
+    pelangganPage--;
+    loadPelanggan();
   }
 }

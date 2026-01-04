@@ -348,38 +348,60 @@ func pelangganHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fullURL := BaseURL + "/rest/v1/pelanggan"
-	if r.URL.RawQuery != "" {
-		fullURL += "?" + r.URL.RawQuery
+	query := r.URL.Query()
+	searchTerm := query.Get("search")
+
+	bodyBytes, _ := io.ReadAll(r.Body)
+	r.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+
+	filterQuery := ""
+	if searchTerm != "" {
+		filterQuery = fmt.Sprintf("&or=(nama.ilike.*%s*,telepon.ilike.*%s*)", searchTerm, searchTerm)
 	}
 
-	buf := new(bytes.Buffer)
-	buf.ReadFrom(r.Body)
+	fullURL := BaseURL + "/rest/v1/pelanggan?select=*"
+	if r.Method == http.MethodGet {
+		fullURL += filterQuery
+	}
 
-	client := &http.Client{}
-	reqSup, _ := http.NewRequest(r.Method, fullURL, buf)
+	page, _ := strconv.Atoi(query.Get("page"))
+	limit, _ := strconv.Atoi(query.Get("limit"))
+
+	query.Del("page")
+	query.Del("limit")
+	query.Del("search")
+
+	if len(query) > 0 {
+		fullURL += "&" + query.Encode()
+	}
+
+	reqSup, _ := http.NewRequest(r.Method, fullURL, bytes.NewBuffer(bodyBytes))
+
 	reqSup.Header.Set("Content-Type", "application/json")
 	reqSup.Header.Set("apikey", APIKey)
-	reqSup.Header.Set("Authorization", "Bearer "+APIKey) // Bypass Auth Supabase
+	reqSup.Header.Set("Authorization", "Bearer "+APIKey)
 
+	if r.Method == http.MethodGet && page > 0 {
+		if limit < 1 {
+			limit = 10
+		}
+		from := (page - 1) * limit
+		to := from + limit - 1
+		reqSup.Header.Set("Range", fmt.Sprintf("%d-%d", from, to))
+	}
+
+	client := &http.Client{}
 	resSup, err := client.Do(reqSup)
 	if err != nil {
-		fmt.Println("Error req Supabase:", err)
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
 		return
 	}
 	defer resSup.Body.Close()
 
-	bodyBytes, _ := io.ReadAll(resSup.Body)
-
-	if resSup.StatusCode >= 400 {
-		fmt.Println("Supabase Error (Pelanggan):", string(bodyBytes))
-	}
-
+	resBody, _ := io.ReadAll(resSup.Body)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(resSup.StatusCode)
-	w.Write(bodyBytes)
+	w.Write(resBody)
 }
 
 func transaksiHandler(w http.ResponseWriter, r *http.Request) {
