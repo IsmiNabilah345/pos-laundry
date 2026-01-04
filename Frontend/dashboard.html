@@ -97,12 +97,13 @@
       <div id="pos-view" class="hidden absolute inset-0 bg-gray-100 z-10 flex flex-col overflow-hidden">
         <div class="bg-white shadow p-4 flex justify-between items-center px-6 flex-shrink-0">
           <h2 class="text-xl font-bold text-gray-800">WellClean POS</h2>
-          <button id="close-pos" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">Keluar Mode
+          <button id="close-pos" class="text-red-500 text-xs font-bold border border-red-600 px-2 py-1 rounded">Keluar
+            Mode
             Kasir</button>
         </div>
 
         <div class="flex-1 flex flex-col md:flex-row overflow-hidden">
-          <div class="w-full md:w-2/3 p-4 md:p-6 overflow-y-auto bg-gray-100">
+          <div class="w-full md:w-2/3 p-4 md:p-6 overflow-y-auto bg-gray-100 flex-1 md:flex-none">
             <input type="text" id="pos-search-layanan" placeholder="Cari Layanan..."
               class="w-full p-3 mb-6 rounded shadow border text-lg focus:ring-2 focus:ring-blue-500">
             <div id="pos-grid" class="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -110,7 +111,7 @@
           </div>
 
           <div
-            class="w-full md:w-1/3 bg-white shadow-lg flex flex-col border-t md:border-t-0 md:border-l overflow-hidden">
+            class="w-full md:w-1/3 bg-white shadow-lg flex flex-col border-t md:border-t-0 md:border-l overflow-hidden min-h-0 flex-[2] md:flex-none">
             <div class="p-4 border-b bg-gray-50 flex-shrink-0">
               <label class="block text-sm font-bold text-gray-700 mb-2">Pelanggan</label>
               <div class="flex gap-2">
@@ -119,7 +120,7 @@
               </div>
             </div>
 
-            <div class="flex-1 p-4 overflow-y-auto">
+            <div class="flex-1 p-4 overflow-y-auto min-h-0 pb-24">
               <h3 class="font-bold text-gray-700 mb-4 border-b pb-2">Keranjang</h3>
               <div id="pos-cart-empty" class="text-center text-gray-400 mt-4">
                 <p>Keranjang kosong</p>
@@ -139,7 +140,7 @@
               </div>
             </div>
 
-            <div class="p-4 bg-gray-50 border-t flex-shrink-0">
+            <div class="p-4 bg-gray-50 border-t flex-shrink-0 min-h-0">
               <div class="mb-4">
                 <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Metode Bayar</label>
                 <select id="pos-metode" class="w-full border p-2 rounded bg-white">
@@ -152,7 +153,7 @@
                 <span id="pos-total" class="text-2xl font-bold text-blue-800">Rp 0</span>
               </div>
               <button id="pos-checkout"
-                class="w-full bg-green-600 text-white py-3 rounded-lg font-bold text-lg hover:bg-green-700 shadow-lg disabled:opacity-50"
+                class="w-full bg-green-600 text-white py-3 rounded-lg font-bold text-lg hover:bg-green-700 shadow-lg disabled:opacity-50 flex-shrink-0"
                 disabled>
                 BAYAR & CETAK
               </button>
