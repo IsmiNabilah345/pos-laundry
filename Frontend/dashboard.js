@@ -391,10 +391,10 @@ async function loadDashboard() {
         <table class="min-w-full divide-y divide-gray-200">
           <thead class="bg-gray-50">
             <tr>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tanggal</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Kode</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Tanggal</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Kode</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Total</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Status</th>
             </tr>
           </thead>
           <tbody class="bg-white divide-y divide-gray-200">
@@ -434,7 +434,7 @@ function loadPelanggan() {
         <h2 class="text-xl font-bold mb-4">Data Pelanggan</h2>
         <button id="btn-tambah" class="bg-blue-600 text-white px-4 py-2 rounded mb-4 shadow hover:bg-blue-700">Tambah Pelanggan</button>
         <input type="text" id="search" placeholder="Cari pelanggan..." class="border p-2 w-full mb-4 rounded"/>
-        <div id="tableContainer" class="bg-white shadow rounded overflow-hidden">
+        <div id="tableContainer" class="bg-white shadow rounded-lg overflow-x-auto border border-gray-200">
           ${renderPelangganTable(rows)}
         </div>
       `;
@@ -497,10 +497,10 @@ function renderPelangganTable(data) {
     <table class="min-w-full divide-y divide-gray-200">
       <thead class="bg-gray-50">
         <tr>
-          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nama</th>
-          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Telepon</th>
-          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Alamat</th>
-          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Aksi</th>
+          <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase whitespace-nowrap">Nama Pelanggan</th>
+          <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase whitespace-nowrap">No. Telepon</th>
+          <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase whitespace-nowrap">Alamat Lengkap</th>
+          <th class="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase whitespace-nowrap">Aksi</th>
         </tr>
       </thead>
       <tbody class="bg-white divide-y divide-gray-200">
@@ -568,7 +568,7 @@ function loadLayanan() {
       content.innerHTML = `
         <h2 class="text-xl font-bold mb-4">Data Layanan</h2>
         ${isAdmin ? `<button id="btn-tambah" class="bg-blue-600 text-white px-4 py-2 rounded mb-4 shadow hover:bg-blue-700">Tambah Layanan</button>` : '<div class="mb-4 text-gray-500 italic">Mode Kasir: Anda hanya dapat melihat layanan.</div>'}
-        <div class="bg-white shadow rounded overflow-hidden">
+        <div class="bg-white shadow rounded-lg overflow-x-auto border border-gray-200">
           ${renderLayananTable(rows, isAdmin)}
         </div>
       `;
@@ -604,10 +604,10 @@ function renderLayananTable(data, isAdmin) {
     <table class="min-w-full divide-y divide-gray-200">
       <thead class="bg-gray-50">
         <tr>
-          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Layanan</th>
-          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Harga</th>
-          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Satuan</th>
-          ${isAdmin ? `<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Aksi</th>` : ''}
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Layanan</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Harga</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Satuan</th>
+          ${isAdmin ? `<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Aksi</th>` : ''}
         </tr>
       </thead>
       <tbody class="bg-white divide-y divide-gray-200">
@@ -659,37 +659,36 @@ function loadTransaksi() {
     content.innerHTML = `
       <h2 class="text-xl font-bold mb-4">Data Transaksi</h2>
       <button id="btn-tambah" class="bg-blue-600 text-white px-4 py-2 rounded mb-4 shadow hover:bg-blue-700">Tambah Transaksi</button>
-      <div class="bg-white shadow rounded overflow-hidden">
-        <table class="min-w-full divide-y divide-gray-200">
+      
+      <div class="bg-white shadow rounded overflow-x-auto border border-gray-200">
+        
+        <table class="min-w-max md:min-w-full divide-y divide-gray-200">
           <thead class="bg-gray-50">
             <tr>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Kode</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Pelanggan</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Metode Pembayaran</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Aksi</th>
+              <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase whitespace-nowrap">Kode</th>
+              <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase whitespace-nowrap">Pelanggan</th>
+              <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase whitespace-nowrap">Metode Pembayaran</th>
+              <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase whitespace-nowrap">Total</th>
+              <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase whitespace-nowrap">Status</th>
+              <th class="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase whitespace-nowrap">Aksi</th>
             </tr>
           </thead>
           <tbody class="bg-white divide-y divide-gray-200">
             ${transaksi.map(t => `
-              <tr>
-                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">${t.kode || '-'}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm">${pelangganMap[t.pelanggan_id] || '-'}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm">${t.metode_pembayaran || '-'}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm">${rupiah(t.total)}</td>
+              <tr class="hover:bg-gray-50 transition">
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${t.kode || '-'}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">${pelangganMap[t.pelanggan_id] || '-'}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">${t.metode_pembayaran || '-'}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-bold">${rupiah(t.total)}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm">
-                  <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${t.status === 'selesai' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
-      }">${t.status}</span>
+                  <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${t.status === 'selesai' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}">
+                    ${t.status}
+                  </span>
                 </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm space-x-1">
-                   <button class="bg-gray-700 text-white px-2 py-1 rounded text-xs hover:bg-gray-800 btn-print" 
-                    data-id="${t.id}">Cetak</button>
-
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-center space-x-1">
+                   <button class="bg-gray-700 text-white px-2 py-1 rounded text-xs hover:bg-gray-800 btn-print" data-id="${t.id}">Cetak</button>
                    ${t.status !== 'selesai' ? `<button class="bg-green-600 text-white px-2 py-1 rounded text-xs hover:bg-green-700 btn-selesai" data-id="${t.id}">Selesai</button>` : ''}
-                   
-                   <button class="bg-red-600 text-white px-2 py-1 rounded text-xs hover:bg-red-700 btn-delete" 
-                    data-id="${t.id}">Hapus</button>
+                   <button class="bg-red-600 text-white px-2 py-1 rounded text-xs hover:bg-red-700 btn-delete" data-id="${t.id}">Hapus</button>
                 </td>
               </tr>
             `).join('')}
@@ -964,14 +963,14 @@ async function loadUserManagement() {
                 </div>
             </div>
 
-            <div class="lg:col-span-2 bg-white rounded-lg border shadow-sm overflow-hidden">
+            <div class="lg:col-span-2 bg-white rounded-lg border shadow-sm overflow-x-auto">
                 <table class="w-full text-left">
                     <thead class="bg-gray-100 border-b">
                         <tr>
-                            <th class="p-4 text-sm font-bold text-gray-600">Nama</th>
-                            <th class="p-4 text-sm font-bold text-gray-600">Username</th>
-                            <th class="p-4 text-sm font-bold text-gray-600">Role</th>
-                            <th class="p-4 text-sm font-bold text-gray-600">Aksi</th>
+                            <th class="p-4 text-sm font-bold text-gray-600 uppercase whitespace-nowrap">Nama</th>
+                            <th class="p-4 text-sm font-bold text-gray-600 uppercase whitespace-nowrap">Username</th>
+                            <th class="p-4 text-sm font-bold text-gray-600 uppercase whitespace-nowrap">Role</th>
+                            <th class="p-4 text-sm font-bold text-gray-600 uppercase whitespace-nowrap">Aksi</th>
                         </tr>
                     </thead>
                     <tbody id="user-list-body">
@@ -991,7 +990,7 @@ async function fetchUserList() {
     });
 
     const data = await res.json();
-    console.log("Data dari backend:", data); 
+    console.log("Data dari backend:", data);
 
     const tbody = document.getElementById("user-list-body");
     tbody.innerHTML = "";
@@ -1008,8 +1007,8 @@ async function fetchUserList() {
             <td class="p-4">${u.username}</td>
             <td class="p-4">${u.role}</td>
             <td class="p-4">
-                <button onclick="editUser('${u.id}', '${u.nama}', '${u.role}')" class="text-blue-500 mr-2">Edit</button>
-                ${u.role !== 'admin' ? `<button onclick="hapusUser('${u.id}')" class="text-red-500">Hapus</button>` : ''}
+                <button onclick="editUser('${u.id}', '${u.nama}', '${u.role}')" class="bg-yellow-600 text-white px-2 py-1 rounded text-xs hover:bg-yellow-700 btn-edit">Edit</button>
+                ${u.role !== 'admin' ? `<button onclick="hapusUser('${u.id}')" class="bg-red-600 text-white px-2 py-1 rounded text-xs hover:bg-red-700 btn-delete">Hapus</button>` : ''}
             </td>
         </tr>
     `;
