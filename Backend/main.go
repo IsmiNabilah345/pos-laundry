@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"math"
 	"net/http"
 	"strconv"
 	"strings"
@@ -323,15 +322,16 @@ func layananHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 type Transaksi struct {
-	Kode             string    `json:"kode"`
-	CreatedAt        time.Time `json:"created_at"`
-	PelangganNama    string    `json:"pelanggan_nama"`
-	LayananNama      string    `json:"layanan_nama"`
-	Berat            float64   `json:"berat"`
-	HargaSatuan      float64   `json:"harga_satuan"`
-	Total            float64   `json:"total"`
-	MetodePembayaran string    `json:"metode_pembayaran"`
-	Status           string    `json:"status"`
+	Kode             string     `json:"kode"`
+	CreatedAt        time.Time  `json:"created_at"`
+	SelesaiAt        *time.Time `json:"selesai_at"`
+	PelangganNama    string     `json:"pelanggan_nama"`
+	LayananNama      string     `json:"layanan_nama"`
+	Berat            float64    `json:"berat"`
+	HargaSatuan      float64    `json:"harga_satuan"`
+	Total            float64    `json:"total"`
+	MetodePembayaran string     `json:"metode_pembayaran"`
+	Status           string     `json:"status"`
 }
 
 func laporanHandler(w http.ResponseWriter, r *http.Request) {
@@ -341,107 +341,111 @@ func laporanHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validasi Role Admin? (Opsional, tapi biasanya laporan utk admin)
-	// claims, _ := validateToken(r)
-	// if claims["role"] != "admin" { ... }
-
 	tipe := r.URL.Query().Get("type")
-	var transaksiURL string
-	switch tipe {
-	case "riwayat":
-		transaksiURL = BaseURL +
-			"/rest/v1/transaksi?status=eq.selesai&select=kode,created_at,berat,total,metode_pembayaran,status,pelanggan(nama),layanan(nama)"
-	case "keuangan":
-		transaksiURL = BaseURL +
-			"/rest/v1/transaksi?status=eq.selesai&select=created_at,total"
-	default:
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte("invalid laporan type"))
-		return
-	}
-
 	client := &http.Client{}
-	reqTrans, _ := http.NewRequest("GET", transaksiURL, nil)
-	reqTrans.Header.Set("apikey", APIKey)
-	reqTrans.Header.Set("Authorization", "Bearer "+APIKey)
 
-	resTrans, err := client.Do(reqTrans)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
+	if tipe == "riwayat" {
+		transaksiURL := BaseURL +
+			"/rest/v1/transaksi_wib" +
+			"?status=eq.selesai" +
+			"&select=kode,created_at,selesai_at,berat,total,metode_pembayaran,status,pelanggan(nama),layanan(nama)" +
+			"&order=selesai_at.desc"
+
+		req, _ := http.NewRequest("GET", transaksiURL, nil)
+		req.Header.Set("apikey", APIKey)
+		req.Header.Set("Authorization", "Bearer "+APIKey)
+
+		res, err := client.Do(req)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		defer res.Body.Close()
+
+		var raw []map[string]any
+		json.NewDecoder(res.Body).Decode(&raw)
+
+		trx := []Transaksi{}
+		for _, item := range raw {
+			t := Transaksi{}
+
+			t.Kode = fmt.Sprint(item["kode"])
+			t.Status = fmt.Sprint(item["status"])
+			t.MetodePembayaran = fmt.Sprint(item["metode_pembayaran"])
+
+			if p, ok := item["pelanggan"].(map[string]any); ok {
+				t.PelangganNama = fmt.Sprint(p["nama"])
+			}
+			if l, ok := item["layanan"].(map[string]any); ok {
+				t.LayananNama = fmt.Sprint(l["nama"])
+			}
+
+			if s, ok := item["selesai_at"].(string); ok && s != "" {
+				if tm, err := time.Parse(time.RFC3339, s); err == nil {
+					t.SelesaiAt = &tm
+				}
+			}
+
+			if total, ok := item["total"].(float64); ok {
+				t.Total = total
+			}
+
+			trx = append(trx, t)
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]any{"data": trx})
 		return
 	}
-	defer resTrans.Body.Close()
-
-	var rawList []map[string]any
-	if err := json.NewDecoder(resTrans.Body).Decode(&rawList); err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	var trx []Transaksi
-	var totalOmset float64
-
-	for _, item := range rawList {
-		t := Transaksi{
-			Kode:             fmt.Sprint(item["kode"]),
-			MetodePembayaran: fmt.Sprint(item["metode_pembayaran"]),
-			Status:           fmt.Sprint(item["status"]),
-		}
-
-		if p, ok := item["pelanggan"].(map[string]any); ok {
-			t.PelangganNama = fmt.Sprint(p["nama"])
-		}
-		if l, ok := item["layanan"].(map[string]any); ok {
-			t.LayananNama = fmt.Sprint(l["nama"])
-		}
-
-		if created, ok := item["created_at"].(string); ok {
-			if parsed, err := time.Parse(time.RFC3339, created); err == nil {
-				t.CreatedAt = parsed
-			}
-		}
-
-		switch v := item["total"].(type) {
-		case float64:
-			t.Total = v
-		case string:
-			if f, err := strconv.ParseFloat(v, 64); err == nil {
-				t.Total = f
-			}
-		}
-		switch v := item["berat"].(type) {
-		case float64:
-			t.Berat = v
-		case string:
-			if f, err := strconv.ParseFloat(v, 64); err == nil {
-				t.Berat = f
-			}
-		}
-
-		if t.Berat > 0 {
-			t.HargaSatuan = t.Total / t.Berat
-			if math.IsNaN(t.HargaSatuan) || math.IsInf(t.HargaSatuan, 0) {
-				t.HargaSatuan = 0
-			}
-		}
-
-		totalOmset += t.Total
-		trx = append(trx, t)
-	}
-
-	w.Header().Set("Content-Type", "application/json")
 
 	if tipe == "keuangan" {
+		loc, _ := time.LoadLocation("Asia/Jakarta")
+		today := time.Now().In(loc).Format("2006-01-02")
+
+		getSum := func(url string) float64 {
+			req, _ := http.NewRequest("GET", url, nil)
+			req.Header.Set("apikey", APIKey)
+			req.Header.Set("Authorization", "Bearer "+APIKey)
+
+			res, err := client.Do(req)
+			if err != nil {
+				return 0
+			}
+			defer res.Body.Close()
+
+			var list []map[string]any
+			json.NewDecoder(res.Body).Decode(&list)
+
+			var sum float64
+			for _, i := range list {
+				if t, ok := i["total"].(float64); ok {
+					sum += t
+				}
+			}
+			return sum
+		}
+
+		// TOTAL OMSET (SEMUA)
+		totalURL := BaseURL +
+			"/rest/v1/transaksi_wib" +
+			"?status=eq.selesai&select=total"
+
+		// OMSET HARIAN (WIB FIX)
+		dailyURL := BaseURL +
+			"/rest/v1/transaksi_wib" +
+			"?status=eq.selesai" +
+			"&selesai_tanggal_wib=eq." + today +
+			"&select=total"
+
+		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]any{
-			"data":        trx,
-			"total_omset": totalOmset,
+			"total_omset":  getSum(totalURL),
+			"omset_harian": getSum(dailyURL),
 		})
 		return
 	}
 
-	json.NewEncoder(w).Encode(map[string]any{
-		"data": trx,
-	})
+	w.WriteHeader(http.StatusBadRequest)
 }
 
 func laporanExportHandler(w http.ResponseWriter, r *http.Request) {
@@ -451,7 +455,6 @@ func laporanExportHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// RBAC: Hanya Admin
 	role, _ := claims["role"].(string)
 	if role != "admin" {
 		w.WriteHeader(http.StatusForbidden)
@@ -459,64 +462,97 @@ func laporanExportHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	tipe := r.URL.Query().Get("type")
-	var transaksiURL string
-	switch tipe {
-	case "riwayat":
-		transaksiURL = BaseURL +
-			"/rest/v1/transaksi?status=eq.selesai&select=kode,created_at,berat,total,metode_pembayaran,status,pelanggan(nama),layanan(nama)"
-	case "keuangan":
-		transaksiURL = BaseURL +
-			"/rest/v1/transaksi?status=eq.selesai&select=created_at,total"
-	default:
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte("invalid laporan type"))
-		return
+	periode := r.URL.Query().Get("periode")
+
+	loc, _ := time.LoadLocation("Asia/Jakarta")
+	now := time.Now().In(loc)
+
+	var start, end time.Time
+
+	// 1. Logika Range Waktu
+	switch periode {
+	case "harian":
+		start = time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, loc)
+		end = start.AddDate(0, 0, 1)
+	case "mingguan":
+		start = now.AddDate(0, 0, -6)
+		start = time.Date(start.Year(), start.Month(), start.Day(), 0, 0, 0, 0, loc)
+		end = time.Date(now.Year(), now.Month(), now.Day(), 23, 59, 59, 0, loc)
+	case "bulanan":
+		start = time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, loc)
+		end = time.Date(now.Year(), now.Month(), now.Day(), 23, 59, 59, 0, loc)
+	case "tahunan":
+		start = time.Date(now.Year(), 1, 1, 0, 0, 0, 0, loc)
+		end = time.Date(now.Year(), now.Month(), now.Day(), 23, 59, 59, 0, loc)
 	}
 
-	client := &http.Client{}
-	reqTrans, _ := http.NewRequest("GET", transaksiURL, nil)
-	reqTrans.Header.Set("apikey", APIKey)
-	reqTrans.Header.Set("Authorization", "Bearer "+APIKey)
+	// 2. Filter menggunakan nama kolom baru: selesai_tanggal_wib
+	filter := fmt.Sprintf("selesai_tanggal_wib=gte.%s&selesai_tanggal_wib=lt.%s",
+		start.Format(time.RFC3339),
+		end.Format(time.RFC3339))
 
-	resTrans, err := client.Do(reqTrans)
+	var transaksiURL string
+	if tipe == "riwayat" {
+		// Tambahkan selesai_tanggal_wib di select
+		transaksiURL = BaseURL + "/rest/v1/transaksi_wib?status=eq.selesai&select=kode,selesai_tanggal_wib,berat,total,metode_pembayaran,status,pelanggan(nama),layanan(nama)"
+	} else {
+		transaksiURL = BaseURL + "/rest/v1/transaksi_wib?status=eq.selesai&select=selesai_tanggal_wib,total"
+	}
+
+	transaksiURL += "&" + filter
+
+	client := &http.Client{}
+	req, _ := http.NewRequest("GET", transaksiURL, nil)
+	req.Header.Set("apikey", APIKey)
+	req.Header.Set("Authorization", "Bearer "+APIKey)
+
+	res, err := client.Do(req)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	defer resTrans.Body.Close()
+	defer res.Body.Close()
 
-	var rawList []map[string]any
-	if err := json.NewDecoder(resTrans.Body).Decode(&rawList); err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
+	var raw []map[string]any
+	json.NewDecoder(res.Body).Decode(&raw)
 
 	var trx []Transaksi
-	for _, item := range rawList {
+	var totalOmsetPeriode float64
+
+	for _, item := range raw {
 		t := Transaksi{}
-		if tipe == "riwayat" {
-			t.Kode = fmt.Sprint(item["kode"])
-			t.MetodePembayaran = fmt.Sprint(item["metode_pembayaran"])
-			t.Status = fmt.Sprint(item["status"])
-			if p, ok := item["pelanggan"].(map[string]any); ok {
-				t.PelangganNama = fmt.Sprint(p["nama"])
-			}
-			if l, ok := item["layanan"].(map[string]any); ok {
-				t.LayananNama = fmt.Sprint(l["nama"])
+		t.Kode = fmt.Sprint(item["kode"])
+		t.Status = fmt.Sprint(item["status"])
+		t.MetodePembayaran = fmt.Sprint(item["metode_pembayaran"])
+
+		if p, ok := item["pelanggan"].(map[string]any); ok {
+			t.PelangganNama = fmt.Sprint(p["nama"])
+		}
+		if l, ok := item["layanan"].(map[string]any); ok {
+			t.LayananNama = fmt.Sprint(l["nama"])
+		}
+
+		// MAPPING: Ambil dari key selesai_tanggal_wib
+		if s, ok := item["selesai_tanggal_wib"].(string); ok && s != "" {
+			if tm, err := time.Parse(time.RFC3339, s); err == nil {
+				t.SelesaiAt = &tm
 			}
 		}
-		if created, ok := item["created_at"].(string); ok {
-			t.CreatedAt, _ = time.Parse(time.RFC3339, created)
-		}
+
 		if total, ok := item["total"].(float64); ok {
 			t.Total = total
+		} else if totalStr, ok := item["total"].(string); ok {
+			t.Total, _ = strconv.ParseFloat(totalStr, 64)
 		}
+
 		if berat, ok := item["berat"].(float64); ok {
 			t.Berat = berat
 		}
 		if t.Berat > 0 {
 			t.HargaSatuan = t.Total / t.Berat
 		}
+
+		totalOmsetPeriode += t.Total
 		trx = append(trx, t)
 	}
 
@@ -524,49 +560,73 @@ func laporanExportHandler(w http.ResponseWriter, r *http.Request) {
 	sheet := "Laporan"
 	f.SetSheetName("Sheet1", sheet)
 
+	// --- STYLE ---
+	headerStyle, _ := f.NewStyle(&excelize.Style{
+		Font:      &excelize.Font{Bold: true, Color: "FFFFFF"},
+		Fill:      excelize.Fill{Type: "pattern", Color: []string{"4B0082"}, Pattern: 1},
+		Alignment: &excelize.Alignment{Horizontal: "center"},
+	})
+	totalStyle, _ := f.NewStyle(&excelize.Style{
+		Font: &excelize.Font{Bold: true},
+		Fill: excelize.Fill{Type: "pattern", Color: []string{"E0E0E0"}, Pattern: 1},
+	})
+
 	if tipe == "riwayat" {
-		headers := []string{"Kode", "Tanggal", "Pelanggan", "Layanan", "Berat", "Harga Satuan", "Total", "Metode", "Status"}
+		headers := []string{"Kode", "Tanggal Selesai", "Pelanggan", "Layanan", "Berat", "Harga Satuan", "Total", "Metode", "Status"}
 		for i, h := range headers {
-			f.SetCellValue(sheet, string(rune('A'+i))+"1", h)
+			col := string(rune('A' + i))
+			f.SetCellValue(sheet, col+"1", h)
+			f.SetCellStyle(sheet, col+"1", col+"1", headerStyle)
+			f.SetColWidth(sheet, col, col, 18)
 		}
+
 		for i, t := range trx {
-			r := strconv.Itoa(i + 2)
-			f.SetCellValue(sheet, "A"+r, t.Kode)
-			f.SetCellValue(sheet, "B"+r, t.CreatedAt.Format("02-01-2006 15:04"))
-			f.SetCellValue(sheet, "C"+r, t.PelangganNama)
-			f.SetCellValue(sheet, "D"+r, t.LayananNama)
-			f.SetCellValue(sheet, "E"+r, t.Berat)
-			f.SetCellValue(sheet, "F"+r, t.HargaSatuan)
-			f.SetCellValue(sheet, "G"+r, t.Total)
-			f.SetCellValue(sheet, "H"+r, t.MetodePembayaran)
-			f.SetCellValue(sheet, "I"+r, t.Status)
+			row := strconv.Itoa(i + 2)
+			f.SetCellValue(sheet, "A"+row, t.Kode)
+			if t.SelesaiAt != nil {
+				f.SetCellValue(sheet, "B"+row, t.SelesaiAt.In(loc).Format("02-01-2006 15:04"))
+			}
+			f.SetCellValue(sheet, "C"+row, t.PelangganNama)
+			f.SetCellValue(sheet, "D"+row, t.LayananNama)
+			f.SetCellValue(sheet, "E"+row, t.Berat)
+			f.SetCellValue(sheet, "F"+row, t.HargaSatuan)
+			f.SetCellValue(sheet, "G"+row, t.Total)
+			f.SetCellValue(sheet, "H"+row, t.MetodePembayaran)
+			f.SetCellValue(sheet, "I"+row, t.Status)
 		}
-	} else if tipe == "keuangan" {
-		headers := []string{"Tanggal", "Total"}
-		for i, h := range headers {
-			f.SetCellValue(sheet, string(rune('A'+i))+"1", h)
-		}
+
+		// Row Total
+		lastRow := strconv.Itoa(len(trx) + 2)
+		f.SetCellValue(sheet, "F"+lastRow, "TOTAL")
+		f.SetCellValue(sheet, "G"+lastRow, totalOmsetPeriode)
+		f.SetCellStyle(sheet, "F"+lastRow, "G"+lastRow, totalStyle)
+
+	} else {
+		// KEUANGAN
+		f.SetCellValue(sheet, "A1", "Tanggal Selesai")
+		f.SetCellValue(sheet, "B1", "Omset (Rp)")
+		f.SetCellStyle(sheet, "A1", "B1", headerStyle)
+		f.SetColWidth(sheet, "A", "B", 25)
+
 		for i, t := range trx {
-			r := strconv.Itoa(i + 2)
-			f.SetCellValue(sheet, "A"+r, t.CreatedAt.Format("02-01-2006"))
-			f.SetCellValue(sheet, "B"+r, t.Total)
+			row := strconv.Itoa(i + 2)
+			if t.SelesaiAt != nil {
+				f.SetCellValue(sheet, "A"+row, t.SelesaiAt.In(loc).Format("02-01-2006"))
+			}
+			f.SetCellValue(sheet, "B"+row, t.Total)
 		}
+
+		lastRow := strconv.Itoa(len(trx) + 2)
+		f.SetCellValue(sheet, "A"+lastRow, "TOTAL OMSET PERIODE INI")
+		f.SetCellValue(sheet, "B"+lastRow, totalOmsetPeriode)
+		f.SetCellStyle(sheet, "A"+lastRow, "B"+lastRow, totalStyle)
 	}
 
 	var buf bytes.Buffer
-	if err := f.Write(&buf); err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
+	f.Write(&buf)
 
 	w.Header().Set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-	filename := "Laporan.xlsx"
-	if tipe == "riwayat" {
-		filename = "Riwayat_Transaksi.xlsx"
-	} else if tipe == "keuangan" {
-		filename = "Laporan_Keuangan.xlsx"
-	}
-	w.Header().Set("Content-Disposition", "attachment; filename="+filename)
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=Laporan_%s_%s.xlsx", tipe, periode))
 	w.Write(buf.Bytes())
 }
 
