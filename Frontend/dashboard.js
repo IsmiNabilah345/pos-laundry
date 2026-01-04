@@ -15,6 +15,7 @@ let posState = {
 document.addEventListener("DOMContentLoaded", () => {
   const page = localStorage.getItem("currentPage") || "dashboard";
   if (page === "transaksi") loadTransaksi();
+  else if (page === "user") loadUserManagement();
   else if (page === "pelanggan") loadPelanggan();
   else if (page === "layanan") loadLayanan();
   else if (page === "laporan") loadLaporan();
@@ -26,6 +27,7 @@ document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("menu-layanan").addEventListener("click", () => nav("layanan", loadLayanan));
   document.getElementById("menu-transaksi").addEventListener("click", () => nav("transaksi", loadTransaksi));
   document.getElementById("menu-laporan").addEventListener("click", () => nav("laporan", loadLaporan));
+  document.getElementById("menu-user").addEventListener("click", () => nav("user", loadUserManagement));
 
   // POS Menu
   document.getElementById("menu-pos").addEventListener("click", () => {
