@@ -682,24 +682,31 @@ func laporanExportHandler(w http.ResponseWriter, r *http.Request) {
 	periode := r.URL.Query().Get("periode")
 
 	loc, _ := time.LoadLocation("Asia/Jakarta")
-	now := time.Now().In(loc)
-
 	var start, end time.Time
 
 	switch periode {
 	case "harian":
+		valDate := r.URL.Query().Get("date")
+		tgl, _ := time.ParseInLocation("2006-01-02", valDate, loc)
+		start = time.Date(tgl.Year(), tgl.Month(), tgl.Day(), 0, 0, 0, 0, loc)
+		end = time.Date(tgl.Year(), tgl.Month(), tgl.Day(), 23, 59, 59, 0, loc)
+
+	case "bulanan":
+		y, _ := strconv.Atoi(r.URL.Query().Get("year"))
+		m, _ := strconv.Atoi(r.URL.Query().Get("month"))
+		start = time.Date(y, time.Month(m), 1, 0, 0, 0, 0, loc)
+		end = start.AddDate(0, 1, -1)
+		end = time.Date(end.Year(), end.Month(), end.Day(), 23, 59, 59, 0, loc)
+
+	case "tahunan":
+		y, _ := strconv.Atoi(r.URL.Query().Get("year"))
+		start = time.Date(y, 1, 1, 0, 0, 0, 0, loc)
+		end = time.Date(y, 12, 31, 23, 59, 59, 0, loc)
+
+	default:
+		now := time.Now().In(loc)
 		start = time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, loc)
 		end = start.AddDate(0, 0, 1)
-	case "mingguan":
-		start = now.AddDate(0, 0, -6)
-		start = time.Date(start.Year(), start.Month(), start.Day(), 0, 0, 0, 0, loc)
-		end = time.Date(now.Year(), now.Month(), now.Day(), 23, 59, 59, 0, loc)
-	case "bulanan":
-		start = time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, loc)
-		end = time.Date(now.Year(), now.Month(), now.Day(), 23, 59, 59, 0, loc)
-	case "tahunan":
-		start = time.Date(now.Year(), 1, 1, 0, 0, 0, 0, loc)
-		end = time.Date(now.Year(), now.Month(), now.Day(), 23, 59, 59, 0, loc)
 	}
 
 	filter := fmt.Sprintf("selesai_tanggal_wib=gte.%s&selesai_tanggal_wib=lte.%s",
@@ -775,7 +782,6 @@ func laporanExportHandler(w http.ResponseWriter, r *http.Request) {
 	sheet := "Laporan"
 	f.SetSheetName("Sheet1", sheet)
 
-	// --- STYLE ---
 	headerStyle, _ := f.NewStyle(&excelize.Style{
 		Font:      &excelize.Font{Bold: true, Color: "FFFFFF"},
 		Fill:      excelize.Fill{Type: "pattern", Color: []string{"4B0082"}, Pattern: 1},
@@ -810,14 +816,12 @@ func laporanExportHandler(w http.ResponseWriter, r *http.Request) {
 			f.SetCellValue(sheet, "I"+row, t.Status)
 		}
 
-		// Row Total
 		lastRow := strconv.Itoa(len(trx) + 2)
 		f.SetCellValue(sheet, "F"+lastRow, "TOTAL")
 		f.SetCellValue(sheet, "G"+lastRow, totalOmsetPeriode)
 		f.SetCellStyle(sheet, "F"+lastRow, "G"+lastRow, totalStyle)
 
 	} else {
-		// KEUANGAN
 		f.SetCellValue(sheet, "A1", "Tanggal Selesai")
 		f.SetCellValue(sheet, "B1", "Omset (Rp)")
 		f.SetCellStyle(sheet, "A1", "B1", headerStyle)
@@ -841,7 +845,7 @@ func laporanExportHandler(w http.ResponseWriter, r *http.Request) {
 	f.Write(&buf)
 
 	w.Header().Set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=Laporan_%s_%s.xlsx", tipe, periode))
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=Laporan_%s_%s.xlsx", tipe, start.Format("2006-01-02")))
 	w.Write(buf.Bytes())
 }
 

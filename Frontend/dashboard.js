@@ -932,91 +932,103 @@ function loadLaporan() {
       // );
 
       content.innerHTML = `
-        <h2 class="text-xl font-bold mb-4">Laporan Keuangan</h2>
-        <div class="flex items-center gap-2 mb-4">
-          <select id="filter-keuangan" class="border p-2 rounded">
-            <option value="harian">Harian</option>
-            <option value="mingguan">Mingguan</option>
-            <option value="bulanan">Bulanan</option>
-            <option value="tahunan">Tahunan</option>
-          </select>
-          <button id="btn-export-keuangan" class="bg-purple-600 text-white px-4 py-2 rounded shadow hover:bg-purple-700">
-            Export Excel
-          </button>
-        </div>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-           <div class="bg-indigo-600 text-white p-6 rounded shadow">
-             <h3>Total Omset (Semua)</h3>
-             <p class="text-2xl font-bold">${rupiah(totalOmset)}</p>
-           </div>
-           <div class="bg-green-600 text-white p-6 rounded shadow">
-             <h3>Omset Tanggal Hari ini = (${todayLabel})</h3>
-             <p class="text-2xl font-bold">${rupiah(dailyTotal)}</p>
-           </div>
+      <h2 class="text-xl font-bold mb-4">Laporan Keuangan dan Riwayat Transaksi</h2>
+      
+      <div class="bg-white p-4 rounded-lg shadow border mb-6">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        
+        <div class="space-y-2">
+          <label class="block text-xs font-bold text-gray-600 uppercase text-center border-b pb-1">Harian</label>
+          <input type="date" id="input-hari" class="border p-2 rounded w-full text-sm mb-2">
+          <div class="grid grid-cols-2 gap-1">
+            <button onclick="prosesExport('riwayat', 'harian')" class="bg-purple-600 text-white p-2 rounded text-[10px] font-bold hover:bg-purple-700">RIWAYAT</button>
+            <button onclick="prosesExport('keuangan', 'harian')" class="bg-indigo-600 text-white p-2 rounded text-[10px] font-bold hover:bg-indigo-700">KEUANGAN</button>
+          </div>
         </div>
 
-        <h3 class="font-bold text-lg mb-2">Riwayat Transaksi</h3>
-        <div class="flex items-center gap-2 mb-4">
-          <select id="filter-periode" class="border p-2 rounded">
-            <option value="harian">Harian</option>
-            <option value="mingguan">Mingguan</option>
-            <option value="bulanan">Bulanan</option>
-            <option value="tahunan">Tahunan</option>
-          </select>
-          <button id="btn-export" class="bg-yellow-500 text-white px-4 py-2 rounded shadow hover:bg-yellow-600">
-            Export Excel
-          </button>
+        <div class="space-y-2">
+          <label class="block text-xs font-bold text-gray-600 uppercase text-center border-b pb-1">Bulanan</label>
+          <input type="month" id="input-bulan" class="border p-2 rounded w-full text-sm mb-2">
+          <div class="grid grid-cols-2 gap-1">
+            <button onclick="prosesExport('riwayat', 'bulanan')" class="bg-green-600 text-white p-2 rounded text-[10px] font-bold hover:bg-green-700">RIWAYAT</button>
+            <button onclick="prosesExport('keuangan', 'bulanan')" class="bg-purple-600 text-white p-2 rounded text-[10px] font-bold hover:bg-purple-700">KEUANGAN</button>
+          </div>
         </div>
-        <div class="bg-white shadow rounded overflow-auto" style="max-height: 400px;">
-           <table class="min-w-full divide-y divide-gray-200">
-             <thead class="bg-gray-50 sticky top-0">
-               <tr>
-                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tanggal</th>
-                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total</th>
-               </tr>
-             </thead>
-             <tbody class="divide-y divide-gray-200">
-              ${items.map(i => `
-                <tr>
+
+        <div class="space-y-2">
+          <label class="block text-xs font-bold text-gray-600 uppercase text-center border-b pb-1">Tahunan</label>
+          <input type="number" id="input-tahun" class="border p-2 rounded w-full text-sm mb-2" value="${new Date().getFullYear()}">
+          <div class="grid grid-cols-2 gap-1">
+            <button onclick="prosesExport('riwayat', 'tahunan')" class="bg-yellow-500 text-white p-2 rounded text-[10px] font-bold hover:bg-yellow-600">RIWAYAT</button>
+            <button onclick="prosesExport('keuangan', 'tahunan')" class="bg-indigo-500 text-white p-2 rounded text-[10px] font-bold hover:bg-indigo-600">KEUANGAN</button>
+          </div>
+        </div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+          <div class="bg-indigo-600 text-white p-6 rounded shadow">
+            <h3 class="text-sm opacity-80 uppercase font-bold">Total Omset (Semua)</h3>
+            <p class="text-2xl font-bold">${rupiah(totalOmset)}</p>
+          </div>
+          <div class="bg-green-600 text-white p-6 rounded shadow">
+            <h3 class="text-sm opacity-80 uppercase font-bold text-wrap">Omset Hari Ini (${todayLabel})</h3>
+            <p class="text-2xl font-bold">${rupiah(dailyTotal)}</p>
+          </div>
+      </div>
+
+      <h3 class="font-bold text-lg mb-2">Riwayat Transaksi Terakhir</h3>
+      <div class="bg-white shadow rounded overflow-auto border border-gray-200" style="max-height: 400px;">
+          <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50 sticky top-0 z-10">
+              <tr>
+                <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Tanggal</th>
+                <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Total</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-200">
+              ${items.length > 0 ? items.map(i => `
+                <tr class="hover:bg-gray-50 transition">
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    ${i.selesai_at ? new Date(i.selesai_at).toLocaleString("id-ID") : (i.created_at ? new Date(i.created_at).toLocaleString("id-ID") : "-")}
+                    ${i.selesai_at ? new Date(i.selesai_at).toLocaleDateString("id-ID") : (i.created_at ? new Date(i.created_at).toLocaleDateString("id-ID") : "-")}
                   </td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-bold">
                     ${rupiah(i.total)}
                   </td>
                 </tr>
-              `).join('')}
+              `).join('') : '<tr><td colspan="2" class="p-4 text-center text-gray-400 italic">Belum ada transaksi</td></tr>'}
             </tbody>
-           </table>
-        </div>
-      `;
-      document.getElementById("btn-export").addEventListener("click", () => {
-        const periode = document.getElementById("filter-periode").value; // ambil periode
-        fetch(`${API}/laporan/export?type=riwayat&periode=${periode}`, {
-          headers: { Authorization: "Bearer " + token }
-        })
-          .then(res => res.blob())
-          .then(blob => {
-            const a = document.createElement("a");
-            a.href = URL.createObjectURL(blob);
-            a.download = `Riwayat_Transaksi_${periode}.xlsx`; // biar nama file sesuai periode
-            a.click();
-          });
-      });
+          </table>
+      </div>
+    `;
 
-      document.getElementById("btn-export-keuangan").addEventListener("click", () => {
-        const periode = document.getElementById("filter-keuangan").value; // ambil periode
-        fetch(`${API}/laporan/export?type=keuangan&periode=${periode}`, {
-          headers: { Authorization: "Bearer " + token }
-        })
-          .then(res => res.blob())
-          .then(blob => {
-            const a = document.createElement("a");
-            a.href = URL.createObjectURL(blob);
-            a.download = `Laporan_Keuangan_${periode}.xlsx`; // nama file sesuai periode
-            a.click();
-          });
-      });
+      // document.getElementById("btn-export").addEventListener("click", () => {
+      //   const periode = document.getElementById("filter-periode").value; // ambil periode
+      //   fetch(`${API}/laporan/export?type=riwayat&periode=${periode}`, {
+      //     headers: { Authorization: "Bearer " + token }
+      //   })
+      //     .then(res => res.blob())
+      //     .then(blob => {
+      //       const a = document.createElement("a");
+      //       a.href = URL.createObjectURL(blob);
+      //       a.download = `Riwayat_Transaksi_${periode}.xlsx`; // biar nama file sesuai periode
+      //       a.click();
+      //     });
+      // });
+
+      // document.getElementById("btn-export-keuangan").addEventListener("click", () => {
+      //   const periode = document.getElementById("filter-keuangan").value; // ambil periode
+      //   fetch(`${API}/laporan/export?type=keuangan&periode=${periode}`, {
+      //     headers: { Authorization: "Bearer " + token }
+      //   })
+      //     .then(res => res.blob())
+      //     .then(blob => {
+      //       const a = document.createElement("a");
+      //       a.href = URL.createObjectURL(blob);
+      //       a.download = `Laporan_Keuangan_${periode}.xlsx`; // nama file sesuai periode
+      //       a.click();
+      //     });
+      // });
     })
     .catch(err => {
       content.innerHTML = `<p class="text-red-500">Gagal memuat laporan: ${err.message}</p>`;
@@ -1032,6 +1044,45 @@ document.addEventListener("DOMContentLoaded", () => {
 
   document.getElementById("menu-user").addEventListener("click", loadUserManagement);
 });
+
+
+function prosesExport(tipe, periode) {
+  let queryParams = `type=${tipe}&periode=${periode}`;
+
+  if (periode === 'harian') {
+    const val = document.getElementById('input-hari').value;
+    if (!val) return alert("Pilih tanggal!");
+    queryParams += `&date=${val}`;
+  } else if (periode === 'bulanan') {
+    const val = document.getElementById('input-bulan').value;
+    if (!val) return alert("Pilih bulan!");
+    const [y, m] = val.split('-');
+    queryParams += `&year=${y}&month=${m}`;
+  } else if (periode === 'tahunan') {
+    const val = document.getElementById('input-tahun').value;
+    if (!val) return alert("Pilih tahun!");
+    queryParams += `&year=${val}`;
+  }
+
+  fetch(`${API}/laporan/export?${queryParams}`, {
+    headers: { Authorization: "Bearer " + token }
+  })
+    .then(res => {
+      if (!res.ok) throw new Error("Gagal download laporan");
+      return res.blob();
+    })
+    .then(blob => {
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `Laporan_${tipe}_${periode}.xlsx`; // Nama file otomatis
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    })
+    .catch(err => alert(err.message));
+}
 
 async function loadUserManagement() {
   const content = document.getElementById("content");
