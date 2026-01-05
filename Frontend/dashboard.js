@@ -30,6 +30,8 @@ let searchTransaksiTimeout;
 
 document.addEventListener("DOMContentLoaded", () => {
   const page = localStorage.getItem("currentPage") || "dashboard";
+  setActiveMenu("menu-" + page);
+
   if (page === "transaksi") loadTransaksi();
   else if (page === "user") loadUserManagement();
   else if (page === "pelanggan") loadPelanggan();
@@ -47,11 +49,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // POS Menu
   document.getElementById("menu-pos").addEventListener("click", () => {
+    setActiveMenu("menu-pos");
     localStorage.setItem("currentPage", "pos");
     loadPOS();
   });
 
   document.getElementById("close-pos").addEventListener("click", () => {
+    setActiveMenu("menu-dashboard");
     localStorage.setItem("currentPage", "dashboard");
     document.getElementById("pos-view").classList.add("hidden");
     loadDashboard();
@@ -119,6 +123,7 @@ document.addEventListener("DOMContentLoaded", () => {
 function nav(pageName, loadFunc) {
   localStorage.setItem("currentPage", pageName);
   document.getElementById("pos-view").classList.add("hidden");
+  setActiveMenu("menu-" + pageName);
   loadFunc();
 }
 
@@ -1234,5 +1239,55 @@ function prevPagePelanggan() {
   if (pelangganPage > 1) {
     pelangganPage--;
     loadPelanggan();
+  }
+}
+
+function setActiveMenu(id) {
+  const menus = [
+    'menu-dashboard',
+    'menu-user',
+    'menu-pelanggan',
+    'menu-layanan',
+    'menu-transaksi',
+    'menu-pos',
+    'menu-laporan'
+  ];
+
+  menus.forEach(menuId => {
+    const btn = document.getElementById(menuId);
+    if (btn) {
+      btn.classList.remove('bg-blue-700', 'font-bold', 'border-l-4', 'border-white');
+    }
+  });
+
+  const activeBtn = document.getElementById(id);
+  if (activeBtn) {
+    activeBtn.classList.add('bg-blue-700', 'font-bold', 'border-l-4', 'border-white');
+  }
+}
+
+function setActiveMenu(id) {
+  const menus = ['menu-dashboard', 'menu-user', 'menu-pelanggan', 'menu-layanan', 'menu-transaksi', 'menu-pos', 'menu-laporan'];
+
+  menus.forEach(menuId => {
+    const btn = document.getElementById(menuId);
+    if (btn) {
+      btn.classList.remove('bg-blue-700', 'font-bold', 'border-l-4', 'border-white');
+
+      if (menuId === 'menu-pos') {
+        btn.classList.add('bg-green-700');
+        btn.classList.remove('bg-green-500');
+      }
+    }
+  });
+
+  const activeBtn = document.getElementById(id);
+  if (activeBtn) {
+    if (id === 'menu-pos') {
+      activeBtn.classList.remove('bg-green-700');
+      activeBtn.classList.add('bg-green-500', 'font-bold', 'border-l-4', 'border-white');
+    } else {
+      activeBtn.classList.add('bg-blue-700', 'font-bold', 'border-l-4', 'border-white');
+    }
   }
 }
