@@ -468,9 +468,7 @@ function loadPelanggan(searchKeyword = "") {
             Previous
           </button>
           
-          <div class="text-sm font-medium text-gray-500">
-            Halaman <span class="text-blue-600 font-bold">${pelangganPage}</span>
-          </div>
+          <span class="font-bold text-sm">Halaman ${pelangganPage}</span>
 
           <button onclick="nextPagePelanggan()" class="bg-white border px-4 py-2 rounded shadow-sm hover:bg-gray-100 disabled:opacity-50 font-bold text-gray-600"
             ${rows.length < pelangganLimit ? 'disabled' : ''}>
@@ -622,9 +620,7 @@ function loadLayanan(searchKeyword = "") {
           <button onclick="prevPageLayanan()" class="px-4 py-2 border rounded shadow-sm text-sm font-bold hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed" 
             ${layananPage === 1 ? 'disabled' : ''}>Previous</button>
           
-          <div class="text-sm font-medium text-gray-500">
-            Halaman <span class="text-blue-600 font-bold">${layananPage}</span>
-          </div>
+          <span class="font-bold text-sm">Halaman ${layananPage}</span>
 
           <button onclick="nextPageLayanan()" class="px-4 py-2 border rounded shadow-sm text-sm font-bold hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
             ${rows.length < layananLimit ? 'disabled' : ''}>Next</button>
@@ -728,7 +724,6 @@ function attachLayananEvents() {
 function loadTransaksi(searchKeyword = "") {
   currentSearchTransaksi = searchKeyword;
 
-  // 1. Ambil data pendukung & data transaksi sekaligus
   Promise.all([
     fetch(`${API}/pelanggan`, { headers: { Authorization: "Bearer " + token } }).then(r => r.json()),
     fetch(`${API}/layanan`, { headers: { Authorization: "Bearer " + token } }).then(r => r.json()),
@@ -786,7 +781,7 @@ function loadTransaksi(searchKeyword = "") {
         </table>
       </div>
 
-      <div class="flex justify-between items-center mt-4 p-4 bg-gray-50 rounded-lg border fixexd bottom-0 shadow-md">
+      <div class="flex justify-between items-center mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
         <button onclick="prevPageTransaksi()" class="bg-white border px-4 py-2 rounded shadow-sm hover:bg-gray-100 disabled:opacity-50" ${transaksiPage === 1 ? 'disabled' : ''}>Previous</button>
         <span class="font-bold text-sm">Halaman ${transaksiPage}</span>
         <button onclick="nextPageTransaksi()" class="bg-white border px-4 py-2 rounded shadow-sm hover:bg-gray-100 disabled:opacity-50" ${transaksi.length < transaksiLimit ? 'disabled' : ''}>Next</button>
@@ -864,9 +859,14 @@ function loadTransaksi(searchKeyword = "") {
 
     document.querySelectorAll(".btn-selesai").forEach(btn => {
       btn.onclick = () => {
+        if (!confirm("Yakin transaksi ini ingin diselesaikan?")) return;
+
         fetch(`${API}/transaksi?id=eq.${btn.dataset.id}`, {
           method: "PATCH",
-          headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: "Bearer " + token
+          },
           body: JSON.stringify({ status: "selesai" })
         }).then(() => loadTransaksi(currentSearchTransaksi));
       }
