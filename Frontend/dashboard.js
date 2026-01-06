@@ -1311,6 +1311,8 @@ eventSource.onmessage = function (event) {
     timer: 7000
   });
 
+  closeQRIS();
+
   const nominalBaru = parseInt(event.data.replace(/\D/g, "")) || 0;
   const displayPendapatan = document.getElementById("total-pendapatan-display");
 
@@ -1323,3 +1325,39 @@ eventSource.onmessage = function (event) {
 eventSource.onerror = function (err) {
   console.error("Wah, koneksi stream putus bos!");
 };
+
+document.addEventListener('change', function (e) {
+  // Cek apakah yang berubah adalah dropdown metode bayar di kasir
+  if (e.target && e.target.id === 'pos-metode') {
+    const modal = document.getElementById('qris-modal');
+    const displayNominal = document.getElementById('qris-nominal-display');
+    const posTotal = document.getElementById('pos-total');
+
+    if (e.target.value === 'QRIS') {
+      // Pastikan elemennya ada sebelum diisi
+      if (modal && displayNominal && posTotal) {
+        displayNominal.innerText = "Total: " + posTotal.innerText;
+        modal.classList.remove('hidden');
+        console.log("Modal QRIS Muncul!");
+      }
+    }
+  }
+});
+
+document.onchange = function (e) {
+  if (e.target && e.target.id === 'pos-metode') {
+    if (e.target.value === 'QRIS') {
+      const totalBayar = document.getElementById('pos-total').innerText;
+      document.getElementById('qris-nominal-display').innerText = "Total: " + totalBayar;
+
+      const modal = document.getElementById('qris-modal');
+      modal.classList.remove('hidden');
+      console.log("QRIS Dipilih, modal harusnya muncul sekarang!");
+    }
+  }
+};
+
+function closeQRIS() {
+  const modal = document.getElementById('qris-modal');
+  modal.classList.add('hidden');
+}

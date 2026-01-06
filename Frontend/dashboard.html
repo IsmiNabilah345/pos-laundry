@@ -93,7 +93,7 @@
     <div class="flex-1 p-4 md:p-6 overflow-y-auto">
 
       <div id="content" class="bg-white p-6 rounded shadow min-h-full overflow-x-auto"">
-        <p class=" text-gray-500">Memuat data...</p>
+          <p class=" text-gray-500">Memuat data...</p>
       </div>
 
       <div id="pos-view" class="hidden absolute inset-0 bg-gray-100 z-10 flex flex-col overflow-hidden">
@@ -189,6 +189,25 @@
     }
   </script>
 
+  <div id="qris-modal" class="hidden flex items-center justify-center p-4"
+    style="position: fixed !important; inset: 0 !important; z-index: 99999 !important; background-color: rgba(0,0,0,0.6) !important;">
+
+    <div class="bg-white rounded-2xl p-6 max-w-xs w-full text-center relative shadow-2xl"
+      style="z-index: 100000 !important;">
+
+      <button onclick="closeQRIS()"
+        class="absolute top-3 right-4 text-gray-400 hover:text-red-500 text-3xl font-bold">&times;</button>
+
+      <h3 class="text-xl font-bold text-gray-800 mb-2">Scan QRIS</h3>
+      <p id="qris-nominal-display" class="text-blue-600 font-bold mb-4 text-lg">Total: Rp 0</p>
+
+      <div class="bg-gray-100 p-2 rounded-xl mb-4">
+        <img src="../assets/qris.jpg" alt="QRIS" class="w-full h-auto rounded-lg">
+      </div>
+
+      <p class="text-xs text-gray-400 italic">Otomatis menutup jika sukses</p>
+    </div>
+  </div>
 </body>
 
 </html>
