@@ -390,7 +390,7 @@ async function loadDashboard() {
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
         <div class="bg-blue-600 text-white p-6 rounded-lg shadow">
           <h3 class="text-lg opacity-90">Total Pendapatan</h3>
-          <p class="text-3xl font-bold mt-2">${rupiah(totalPendapatan)}</p>
+          <p id="total-pendapatan-display" class="text-3xl font-bold mt-2">${rupiah(totalPendapatan)}</p>
         </div>
         <div class="bg-green-500 text-white p-6 rounded-lg shadow">
           <h3 class="text-lg opacity-90">Total Transaksi</h3>
@@ -1291,3 +1291,35 @@ function setActiveMenu(id) {
     }
   }
 }
+
+const eventSource = new EventSource("http://localhost:8080/api/stream");
+
+eventSource.onopen = function () {
+  console.log("Koneksi Berhasil Terbuka!");
+};
+
+eventSource.onmessage = function (event) {
+
+  console.log("Duit masuk:", event.data);
+
+  Swal.fire({
+    toast: true,
+    position: 'top-end',
+    icon: 'success',
+    title: event.data,
+    showConfirmButton: false,
+    timer: 7000
+  });
+
+  const nominalBaru = parseInt(event.data.replace(/\D/g, "")) || 0;
+  const displayPendapatan = document.getElementById("total-pendapatan-display");
+
+  if (displayPendapatan && nominalBaru > 0) {
+    let angkaLama = parseInt(displayPendapatan.innerText.replace(/\D/g, "")) || 0;
+    displayPendapatan.innerText = rupiah(angkaLama + nominalBaru);
+  }
+};
+
+eventSource.onerror = function (err) {
+  console.error("Wah, koneksi stream putus bos!");
+};

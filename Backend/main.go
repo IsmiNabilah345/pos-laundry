@@ -861,6 +861,8 @@ func main() {
 	http.HandleFunc("/layanan", corsMiddleware(layananHandler))
 	http.HandleFunc("/laporan", corsMiddleware(laporanHandler))
 	http.HandleFunc("/laporan/export", corsMiddleware(laporanExportHandler))
+	http.HandleFunc("/api/webhook-gopay", GopayHandler)
+	http.HandleFunc("/api/stream", StreamHandler)
 
 	fmt.Println("Server WellClean Laundry jalan di: http://localhost:8080")
 	http.ListenAndServe(":8080", nil)
