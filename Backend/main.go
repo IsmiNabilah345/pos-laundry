@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -149,6 +151,50 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 		"access_token": tokenString,
 		"role":         user.Role,
 	})
+}
+
+func seedAdminIfNeeded() {
+	client := &http.Client{}
+
+	url := fmt.Sprintf("%s/rest/v1/users?select=count", BaseURL)
+	reqSup, _ := http.NewRequest("GET", url, nil)
+	reqSup.Header.Set("apikey", APIKey)
+	reqSup.Header.Set("Authorization", "Bearer "+APIKey)
+	reqSup.Header.Set("Prefer", "count=exact")
+
+	resSup, err := client.Do(reqSup)
+	if err != nil {
+		fmt.Println("Gagal koneksi ke Supabase saat seeding:", err)
+		return
+	}
+	defer resSup.Body.Close()
+
+	contentRange := resSup.Header.Get("Content-Range")
+	if strings.HasSuffix(contentRange, "/0") {
+		fmt.Println("Tabel users kosong. Menyiapkan admin default...")
+
+		hashedPassword, _ := HashPassword("admin123")
+
+		adminData := map[string]string{
+			"username": "admin",
+			"password": hashedPassword,
+			"role":     "admin",
+		}
+		body, _ := json.Marshal(adminData)
+
+		postUrl := fmt.Sprintf("%s/rest/v1/users", BaseURL)
+		postReq, _ := http.NewRequest("POST", postUrl, bytes.NewBuffer(body))
+		postReq.Header.Set("apikey", APIKey)
+		postReq.Header.Set("Authorization", "Bearer "+APIKey)
+		postReq.Header.Set("Content-Type", "application/json")
+
+		postRes, err := client.Do(postReq)
+		if err != nil || postRes.StatusCode >= 400 {
+			fmt.Println("Gagal membuat admin default")
+		} else {
+			fmt.Println("Berhasil membuat akun admin default (admin/admin123)")
+		}
+	}
 }
 
 func registerHandler(w http.ResponseWriter, r *http.Request) {
@@ -850,6 +896,8 @@ func laporanExportHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+	seedAdminIfNeeded()
+
 	http.HandleFunc("/login", corsMiddleware(loginHandler))
 	http.HandleFunc("/register", corsMiddleware(registerHandler))
 	http.HandleFunc("/users", corsMiddleware(getUsersHandler))
@@ -864,6 +912,11 @@ func main() {
 	http.HandleFunc("/api/webhook-gopay", GopayHandler)
 	http.HandleFunc("/api/stream", StreamHandler)
 
-	fmt.Println("Server WellClean Laundry jalan di: http://localhost:8080")
-	http.ListenAndServe(":8080", nil)
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+
+	fmt.Printf("Server WellClean Laundry jalan di port: %s\n", port)
+	log.Fatal(http.ListenAndServe(":"+port, nil))
 }
