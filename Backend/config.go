@@ -1,7 +1,11 @@
 package main
 
-const (
-	BaseURL   = ""
-	APIKey    = ""
-	JWTSecret = "rahasia-pos-laundry-2025" // Secret Key Backend
+import (
+	"os"
+)
+
+var (
+	BaseURL   = os.Getenv("SUPABASE_URL")
+	APIKey    = os.Getenv("SUPABASE_ANON_KEY")
+	JWTSecret = os.Getenv("JWT_SECRET")
 )
